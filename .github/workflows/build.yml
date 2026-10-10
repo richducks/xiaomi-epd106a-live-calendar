@@ -27,7 +27,9 @@ jobs:
           bash build-neat-zones.sh
       - name: Source shell and JavaScript checks
         run: |
-          for file in scripts/*.sh recovery/*.sh; do sh -n "$file"; done
+          for file in scripts/*.sh recovery/*.sh; do
+            case "$file" in scripts/provision-clone.sh|scripts/snapshot-private.sh) bash -n "$file" ;; *) sh -n "$file" ;; esac
+          done
           node --check web/app.js
       - name: Publish workflow APK artifacts (not firmware)
         uses: actions/upload-artifact@v4

@@ -1,0 +1,28 @@
+{
+  "profile_version": 1,
+  "device_model": "EPD106A",
+  "device_codename": "virgo-perf1",
+  "android_sdk": 27,
+  "android_version": "8.1.0",
+  "firmware_fingerprint": "Allwinner/virgo_perf1/virgo-perf1:8.1.0/OPM1.171019.026/20240424-143400:user/test-keys",
+  "required_third_party": {
+    "Magisk": "30.7",
+    "Zygisk-LSPosed": "1.9.2 (7024)",
+    "NeatReader": "8.1.4",
+    "AppManager_optional": "4.1.1"
+  },
+  "first_party_apks": {
+    "eink-calendar.apk": "org.epd.calendar",
+    "eink-livecalendar-policy.apk": "org.epd.calendar.policy",
+    "eink-neat-touchzones.apk": "org.epd.neat.touchzones"
+  },
+  "lsposed_scopes": {
+    "org.epd.calendar.policy": ["android"],
+    "org.epd.neat.touchzones": ["com.gzhi.neatreader.r2.main"]
+  },
+  "verified_runtime_properties": {
+    "persist.epd.liveclock": "1",
+    "persist.epd.neatzones": "1"
+  },
+  "device_specific_secrets_excluded": true
+}
