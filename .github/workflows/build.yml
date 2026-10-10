@@ -24,6 +24,7 @@ jobs:
         run: |
           bash build.sh
           bash build-xposed.sh
+          bash build-neat-zones.sh
       - name: Source shell and JavaScript checks
         run: |
           for file in scripts/*.sh recovery/*.sh; do sh -n "$file"; done
@@ -35,4 +36,5 @@ jobs:
           path: |
             build/output/eink-calendar-test.apk
             build/output/eink-livecalendar-policy.apk
+            build/output/eink-neat-touchzones.apk
           if-no-files-found: error

@@ -75,3 +75,11 @@ bash scripts/test-device.sh --power-cycle  # 需要人工同意，改变当前�
 ```
 
 完整工程/产品验收、测试日志和待办见 [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md)。本仓库第一方代码采用 [Apache-2.0](LICENSE) 协议；商标属于各自所有者，非厂商或第三方项目官方产品。
+
+## NeatReader 多看式触控区域（独立组件）
+
+`bash build-neat-zones.sh` 生成 `build/output/eink-neat-touchzones.apk`。模块仅通过 LSPosed 勾选 Neat Reader 作用域，**切勿勾选系统框架或多看**。在原生书籍页轻点屏幕中央或顶部中间区域，会显示位于页面底部的四按钮菜单：上一页、下一页、更多设置、关闭。左、右区域仍交给 NeatReader 原生翻页。
+
+菜单只在同一个 Activity 视图中常驻并切换显隐，不创建独立 PopupWindow，也不重复加载书籍内容。`更多设置` 会调用 NeatReader 原生菜单，该菜单仍可能自行整屏刷新。默认 `persist.epd.neatfast=0`，可选 DU 局刷模式须单独验证后开启；它不能消除 NeatReader 私有电子书解析/加载转圈。
+
+Android 锁屏日历底部显示通过 `ACTION_BATTERY_CHANGED` 获取的实时 `电量 XX%`。

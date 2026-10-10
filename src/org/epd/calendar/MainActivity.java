@@ -20,7 +20,7 @@ public class MainActivity extends Activity {
   static final String[] D={"一","二","三","四","五","六","七","八","九","十"};
   static final String[] SOL={"小寒","大寒","立春","雨水","惊蛰","春分","清明","谷雨","立夏","小满","芒种","夏至","小暑","大暑","立秋","处暑","白露","秋分","寒露","霜降","立冬","小雪","大雪","冬至"};
   static final int[] SOLMIN={0,21208,42467,63836,85337,107014,128867,150921,173149,195551,218072,240693,263343,285989,308563,331033,353350,375494,397447,419210,440795,462224,483532,504758};
-  TextView clock,solar;
+  TextView clock,solar,batteryView;
   LinearLayout calendar;
   int dateKey=-1;
   int dp(float n){return Math.round(n*getResources().getDisplayMetrics().density);}
@@ -147,8 +147,19 @@ public class MainActivity extends Activity {
     calendar=vert();
     root.addView(calendar,new LinearLayout.LayoutParams(-1,0,1));
     View line2=new View(this);line2.setBackgroundColor(Color.BLACK);add(root,line2,2);
-    solar=text("",16,false,Color.DKGRAY);
-    add(root,solar,40);
+    // Compact footer: solar terms on the left, live battery percentage on the right.
+    // Reuse the existing 40dp footer rather than adding another screen section.
+    LinearLayout footer=new LinearLayout(this);
+    footer.setOrientation(LinearLayout.HORIZONTAL);
+    footer.setGravity(Gravity.CENTER_VERTICAL);
+    footer.setBackgroundColor(Color.WHITE);
+    solar=text("",15,false,Color.DKGRAY);
+    solar.setGravity(Gravity.CENTER_VERTICAL | Gravity.LEFT);
+    footer.addView(solar,new LinearLayout.LayoutParams(0,dp(40),1));
+    batteryView=text("电量 --%",15,true,Color.BLACK);
+    batteryView.setGravity(Gravity.CENTER_VERTICAL | Gravity.RIGHT);
+    footer.addView(batteryView,new LinearLayout.LayoutParams(dp(124),dp(40)));
+    add(root,footer,40);
   }
   static String dayName(int d){
     if(d==10)return "初十";if(d==20)return "二十";if(d==30)return "三十";
@@ -177,7 +188,20 @@ public class MainActivity extends Activity {
     SimpleDateFormat fmt=new SimpleDateFormat("HH:mm",Locale.CHINA);fmt.setTimeZone(TZ);
     String hhmm=fmt.format(n.getTime());
     clock.setText(hhmm);
-    solar.setText("本月节气（估算） "+SOL[m*2]+solarDay(y,m*2)+"日 · "+SOL[m*2+1]+solarDay(y,m*2+1)+"日");
+    solar.setText("节气（估） "+SOL[m*2]+solarDay(y,m*2)+"日 · "+SOL[m*2+1]+solarDay(y,m*2+1)+"日");
+    // Sticky ACTION_BATTERY_CHANGED is the Android source of truth.
+    // Avoid hard-coded percentages and avoid polling a privileged battery service.
+    Intent status=registerReceiver(null,new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+    int level=status==null?-1:status.getIntExtra(BatteryManager.EXTRA_LEVEL,-1);
+    int scale=status==null?-1:status.getIntExtra(BatteryManager.EXTRA_SCALE,-1);
+    if(batteryView!=null){
+      if(level>=0 && scale>0){
+        int percent=Math.max(0,Math.min(100,(level*100+scale/2)/scale));
+        batteryView.setText("电量 "+percent+"%");
+      }else{
+        batteryView.setText("电量 --%");
+      }
+    }
     int key=y*10000+(m+1)*100+d;
     if(key!=dateKey){drawMonth(y,m,d);dateKey=key;}
   }
