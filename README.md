@@ -1,6 +1,6 @@
 # 墨水历 · EPD106A 动态万年历锁屏
 
-[English](README.en.md) · [安装与卸载](docs/INSTALL.md) · [工程/产品验收](docs/ACCEPTANCE.md) · [恢复机制](docs/RECOVERY.md) · [Root 与版权](docs/ROOT_AND_LICENSES.md)
+[English](README.en.md) · [安装与卸载](docs/INSTALL.md) · [工程/产品验收](docs/ACCEPTANCE.md) · [恢复机制](docs/RECOVERY.md) · [已遇到的问题](docs/TROUBLESHOOTING.md) · [Root 与版权](docs/ROOT_AND_LICENSES.md)
 
 为小米多看阅读器一代、墨案 EPD106A / Android 8.1（virgo-perf1）开发的**开源、原生、真实分钟更新的动态万年历**。本项目不是静态锁屏 PNG：在正常电量下，短按实体电源键直接切换至原生 Android 日历，显示北京时间 `HH:mm`、公历、农历、月历和节气估算、今日手绘墨圈；再次短按返回原阅读任务。
 
