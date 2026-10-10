@@ -10,9 +10,11 @@ Recovery 救援：请先阅读 [RECOVERY.md](RECOVERY.md)，安装独立于 LSPo
 
 ## 2. 安装
 
-下载安装：GitHub Release 提供的 `eink-calendar.apk` / `eink-livecalendar-policy.apk`。或者在仓库根目录执行 `bash build.sh && bash build-xposed.sh`。
+下载安装：从 [GitHub Release](https://github.com/richducks/xiaomi-epd106a-live-calendar/releases) 下载 `eink-calendar.apk` 和 `eink-livecalendar-policy.apk` 到仓库的 `dist/` 文件夹。或者在仓库根目录执行 `bash build.sh && bash build-xposed.sh`。脚本会优先使用 `dist/` 内下载的 APK，然后才回退到源码编译结果。
 
 ```bash
+mkdir -p dist
+# 下载好的两份 APK 放在 dist/ 后运行
 bash scripts/install.sh
 ```
 

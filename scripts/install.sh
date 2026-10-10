@@ -3,9 +3,23 @@ set -eu
 BASE=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
 . "$BASE/scripts/common.sh"
 device_check
-APP="$BASE/build/output/eink-calendar-test.apk"
-HOOK="$BASE/build/output/eink-livecalendar-policy.apk"
-[ -f "$APP" ] && [ -f "$HOOK" ] || { echo "Build both APKs first: bash build.sh && bash build-xposed.sh" >&2; exit 1; }
+# Prefer downloaded public Release artifacts; fall back to locally built APKs.
+if [ -f "$BASE/dist/eink-calendar.apk" ] && [ -f "$BASE/dist/eink-livecalendar-policy.apk" ]; then
+  APP="$BASE/dist/eink-calendar.apk"
+  HOOK="$BASE/dist/eink-livecalendar-policy.apk"
+elif [ -f "$BASE/eink-calendar.apk" ] && [ -f "$BASE/eink-livecalendar-policy.apk" ]; then
+  APP="$BASE/eink-calendar.apk"
+  HOOK="$BASE/eink-livecalendar-policy.apk"
+else
+  APP="$BASE/build/output/eink-calendar-test.apk"
+  HOOK="$BASE/build/output/eink-livecalendar-policy.apk"
+fi
+[ -f "$APP" ] && [ -f "$HOOK" ] || {
+  echo "ERROR: Download both APKs to dist/ or build with bash build.sh && bash build-xposed.sh" >&2
+  exit 1
+}
+echo "Installing native APK from $APP"
+echo "Installing policy APK from $HOOK"
 # Install an independent Recovery guard before any system-server hooking.
 # Never overwrite an existing locally maintained guard without review.
 "$ADB" push "$BASE/recovery/00-eink-livecalendar-recovery-guard.sh" /data/local/tmp/00-eink-livecalendar-recovery-guard.sh

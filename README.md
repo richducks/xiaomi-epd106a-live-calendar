@@ -23,7 +23,10 @@
 5. 随时可运行 `scripts/disable.sh` 关闭挂接逻辑；无法启动时参见 [Recovery 救援](docs/RECOVERY.md)。
 
 ```bash
+# 方式 A：源码构建
 bash build.sh && bash build-xposed.sh
+# 方式 B：下载 GitHub Release 两份 APK 至 dist/（无需源码构建）
+# 最后都使用同一个安装入口
 bash scripts/install.sh
 # 必须先在 LSPosed 设好 system 范围并重启
 bash scripts/enable.sh
