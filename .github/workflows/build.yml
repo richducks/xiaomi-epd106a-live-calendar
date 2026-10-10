@@ -1,0 +1,35 @@
+name: Android and offline acceptance
+on:
+  push:
+  pull_request:
+jobs:
+  build-and-unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - name: Install pinned Android toolchain
+        run: |
+          sdkmanager "platforms;android-36" "build-tools;35.0.0"
+      - name: Offline unit and guard tests
+        run: python3 -m unittest discover -s tests -v
+      - name: Android builds
+        run: |
+          bash build.sh
+          bash build-xposed.sh
+      - name: Source shell and JavaScript checks
+        run: |
+          for file in scripts/*.sh recovery/*.sh; do sh -n "$file"; done
+          node --check web/app.js
+      - name: Publish workflow APK artifacts (not firmware)
+        uses: actions/upload-artifact@v4
+        with:
+          name: EPD106A-application-and-hook
+          path: |
+            build/output/eink-calendar-test.apk
+            build/output/eink-livecalendar-policy.apk
+          if-no-files-found: error

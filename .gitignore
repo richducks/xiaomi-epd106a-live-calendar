@@ -1,0 +1,27 @@
+# Only original code and manuals are distributed.
+build/
+dist/
+*.apk
+*.idsig
+*.img
+*.bin
+*.keystore
+*.pk8
+*.pem
+*.vdex
+*.odex
+*.dex
+*.jar
+*.zip
+*.partial
+*.db
+*.db-shm
+*.db-wal
+*.log
+__pycache__/
+.pytest_cache/
+*.pyc
+.DS_Store
+.env*
+root-prep/
+device-backups/

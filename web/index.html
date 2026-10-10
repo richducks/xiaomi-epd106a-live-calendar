@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light" />
+  <title>墨水历 · 锁屏排版工作台</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><div class="brand-mark"><span>日</span></div>
+      <div><div class="brand-name">墨水历 <span class="brand-sep">/</span> <span class="brand-tag">STUDIO</span></div>
+      <div class="brand-sub">小米多看一代 · EPD106A 锁屏设计工作台</div></div>
+    </div>
+    <div class="top-actions">
+      <span class="tag-status"><span class="status-dot"></span> 本地编辑 · 未同步设备</span>
+      <button id="importBtn" class="button ghost" type="button">导入方案</button>
+      <button id="saveBtn" class="button secondary" type="button">保存方案</button>
+      <button id="exportBtn" class="button primary" type="button"><span aria-hidden="true">↧</span> 导出 PNG</button>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <aside class="sidebar side-left" aria-label="模块与模板">
+      <div class="side-section pad-bottom">
+
+        <h2>选择排版</h2>
+        <p class="muted side-hint">先选一个喜欢的样式，再拖动内容微调。</p>
+        <div class="presets" id="presetList" role="group" aria-label="预设排版">
+          <button class="preset active" type="button" data-preset="classic"><span class="preset-icon classic-icon"><i></i><i></i><i></i></span><span><strong>标准月历</strong><small>表格为主 · 推荐</small></span><span class="preset-check">✓</span></button>
+          <button class="preset" type="button" data-preset="minimal"><span class="preset-icon minimal-icon"><i></i><i></i></span><span><strong>大字留白</strong><small>字号更大 · 清晰</small></span><span class="preset-check">✓</span></button>
+          <button class="preset" type="button" data-preset="compact"><span class="preset-icon compact-icon"><i></i><i></i><i></i></span><span><strong>紧凑月历</strong><small>充满画布 · 高效</small></span><span class="preset-check">✓</span></button>
+        </div>
+      </div>
+
+      <div class="side-section modules-section">
+        <div class="section-heading"><div><h2>内容模块</h2></div><span class="count-pill" id="layerCount">4</span></div>
+        <div class="module-list" id="moduleList" aria-label="选择内容模块"></div>
+      </div>
+
+    </aside>
+
+    <section class="stage" aria-label="锁屏实时预览">
+      <div class="stage-toolbar">
+        <div class="stage-title-block"><h1>锁屏预览 <span>· 758 × 1024</span></h1></div>
+        <div class="date-controls">
+          <button class="small-btn" id="prevDay" title="前一天" aria-label="前一天" type="button">‹</button>
+          <input type="date" id="dateInput" aria-label="预览日期" />
+          <button class="small-btn" id="nextDay" title="后一天" aria-label="后一天" type="button">›</button>
+          <button class="today-btn" id="todayBtn" type="button">今天</button>
+        </div>
+      </div>
+      <div class="stage-surface">
+        <div class="preview-info"><span><span class="preview-dot"></span> 网页预览 · 不同步设备</span><span id="previewState">编辑模式 · 可拖动模块</span></div>
+        <div class="preview-container">
+          <div class="device-frame" id="deviceFrame">
+            <div class="device-screen"><canvas id="calendarCanvas" width="758" height="1024" aria-label="万年历锁屏预览，选中模块后可拖动调整位置"></canvas></div>
+
+          </div>
+        </div>
+        <div class="preview-bottom">
+          <div class="instructions"><span class="gesture-icon">✥</span> 拖动内容改变位置 <span class="tiny-divider">/</span> 方向键精调 1 像素</div>
+          <div class="zoom-controls">
+            <button id="guideToggle" class="tool-toggle active" aria-pressed="true" type="button">辅助线</button>
+            <button id="previewToggle" class="tool-toggle" aria-pressed="false" type="button">纯净预览</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="sidebar side-right" aria-label="排版设置">
+      <div class="inspector-header"><div><h2>排版属性</h2></div><button class="mini-reset" type="button" id="resetModule" title="重置当前模块">重置模块 ↶</button></div>
+      <div class="inspector-scroll">
+        <div class="selected-chip"><span class="selected-icon" id="selectedIcon">◫</span><span><strong id="selectedName">月历网格</strong><small id="selectedDescription">点击预览区中的内容即可切换</small></span></div>
+
+        <div class="control-group" id="textControlWrap">
+          <label class="control-label" for="moduleText">显示文字</label>
+          <input id="moduleText" class="text-field" type="text" placeholder="自定义文字" maxlength="36" />
+        </div>
+        <div class="control-group">
+          <div class="row-between"><label class="control-label" for="fontSize">主字号</label><span id="fontSizeValue" class="value-label">30 px</span></div>
+          <input id="fontSize" type="range" min="12" max="190" value="30" />
+          <div class="slider-scale"><span>小</span><span>大</span></div>
+        </div>
+        <div class="control-group">
+          <div class="row-between"><label class="control-label" for="posX">水平位置</label><span class="value-label" id="posXValue">379 px</span></div>
+          <input id="posX" type="range" min="0" max="758" value="379" />
+        </div>
+        <div class="control-group">
+          <div class="row-between"><label class="control-label" for="posY">垂直位置</label><span class="value-label" id="posYValue">395 px</span></div>
+          <input id="posY" type="range" min="0" max="1024" value="395" />
+        </div>
+        <div class="control-group" id="heightWrap">
+          <div class="row-between"><label class="control-label" for="moduleHeight">模块高度</label><span id="moduleHeightValue" class="value-label">450 px</span></div>
+          <input id="moduleHeight" type="range" min="180" max="650" value="450" />
+        </div>
+        <div class="control-group" id="subtitleWrap">
+          <label class="control-label" for="subtitleText">底部说明</label>
+          <input id="subtitleText" class="text-field" type="text" maxlength="36" />
+        </div>
+        <div class="control-group nudge-group">
+          <div class="control-label">位置微调 <span class="minor-label">每次 1px</span></div>
+          <div class="nudge-row"><span class="kbd-hint">← ↑ ↓ →</span><div class="nudge-pad"><button data-nudge="0,-1" aria-label="上移">↑</button><div><button data-nudge="-1,0" aria-label="左移">←</button><button data-nudge="0,1" aria-label="下移">↓</button><button data-nudge="1,0" aria-label="右移">→</button></div></div></div>
+        </div>
+
+        <div class="divider"></div>
+        <div class="section-heading settings-heading"><div><h2>画布设置</h2></div></div>
+        <div class="control-group">
+          <label class="control-label" for="fontFamily">字体风格</label>
+          <select id="fontFamily" class="text-field">
+            <option value="sans">现代黑体 · 清晰</option>
+            <option value="serif">宋体衬线 · 书卷气</option>
+            <option value="mono">等宽字体 · 科技感</option>
+          </select>
+        </div>
+        <div class="control-group">
+          <label class="control-label">墨水屏配色</label>
+          <div class="palette-row">
+            <button class="palette active" data-palette="normal" title="经典黑白"><i class="palette-dot black"></i><span>黑白</span></button>
+            <button class="palette" data-palette="soft" title="柔和灰阶"><i class="palette-dot soft"></i><span>灰阶</span></button>
+            <button class="palette" data-palette="invert" title="夜间反色"><i class="palette-dot inverted"></i><span>反色</span></button>
+          </div>
+        </div>
+        <label class="switch-row"><span><strong>显示农历</strong><small>日期及月视图农历</small></span><input type="checkbox" id="showLunar" checked><span class="switch"></span></label>
+        <label class="switch-row"><span><strong>显示节气</strong><small>节气日期为估算值</small></span><input type="checkbox" id="showSolar" checked><span class="switch"></span></label>
+        <label class="switch-row"><span><strong>选中日期反白</strong><small>突出今日或预览日期</small></span><input type="checkbox" id="highlightToday" checked><span class="switch"></span></label>
+      </div>
+      <div class="inspector-foot">
+        <button id="exportConfigBtn" class="config-btn" type="button">导出排版配置 <span>↗</span></button>
+        <button id="resetAllBtn" class="reset-link" type="button">恢复默认排版</button>
+      </div>
+    </aside>
+  </main>
+  <input id="importInput" type="file" accept=".json,application/json" hidden />
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="./app.js"></script>
+</body>
+</html>
