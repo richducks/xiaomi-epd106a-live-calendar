@@ -13,10 +13,11 @@ jobs:
           java-version: '17'
       - name: Install pinned Android toolchain
         run: |
-          # ubuntu-latest already exports ANDROID_HOME and an SDK manager.
-          # Older setup actions run 'sdkmanager tools', a retired SDK package.
-          yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager "platforms;android-36" "build-tools;35.0.0"
+          # Ubuntu exports ANDROID_HOME; SDK manager exists but may not be in PATH.
+          SDK_MANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)"
+          test -n "$SDK_MANAGER" || { echo "Missing Android SDK manager" >&2; exit 1; }
+          yes | "$SDK_MANAGER" --licenses >/dev/null || true
+          "$SDK_MANAGER" "platforms;android-36" "build-tools;35.0.0"
       - name: Offline unit and guard tests
         run: python3 -m unittest discover -s tests -v
       - name: Android builds

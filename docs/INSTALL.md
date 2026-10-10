@@ -20,7 +20,7 @@ bash scripts/install.sh
 
 ## 3. LSPosed 配置（需要在设备上完成）
 
-打开 LSPosed 管理器，勾选 **Eink Live Calendar Power Policy**，作用域只选 **Android Framework / system**，不要选择多看、其他第三方 App 或系统设置，之后重启阅读器。没有成功装载系统策略钩子时，`enable.sh` 无法自动代替这一步。
+打开 LSPosed 管理器，勾选 **墨水万年历 · 电源键模块**（org.epd.calendar.policy），作用域只选 **Android Framework / system**，不要选择多看、其他第三方 App 或系统设置，之后重启阅读器。没有成功装载系统策略钩子时，`enable.sh` 无法自动代替这一步。
 
 ## 4. 体验和验收
 

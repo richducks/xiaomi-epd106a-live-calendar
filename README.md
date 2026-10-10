@@ -18,7 +18,7 @@
 
 1. Android 8.1 EPD106A 安装最新版 Magisk 并启用 Zygisk；通过其官方渠道安装兼容的 LSPosed（第三方软件，**本仓库不分发**）。
 2. 下载本仓库 Releases 中的 `eink-calendar.apk` 和 `eink-livecalendar-policy.apk`，依次安装。
-3. 在 LSPosed 管理器中启用 **Eink Live Calendar Power Policy**，**仅**将范围设为 Android Framework（`system`），重启。
+3. 在 LSPosed 管理器中启用 **墨水万年历 · 电源键模块**（org.epd.calendar.policy），**仅**将范围设为 Android Framework（`system`），重启。
 4. 先测试能正常启动，再从 Ubuntu 执行 `scripts/enable.sh` 打开功能；从书中短按电源键、等待 1 分钟确认刷新、再短按确认返回书籍原位置。
 5. 随时可运行 `scripts/disable.sh` 关闭挂接逻辑；无法启动时参见 [Recovery 救援](docs/RECOVERY.md)。
 
