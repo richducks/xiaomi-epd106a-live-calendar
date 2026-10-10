@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
- package="org.epd.neat.touchzones" android:versionCode="3" android:versionName="0.1.1-beta.3">
+ package="org.epd.neat.touchzones" android:versionCode="5" android:versionName="0.1.3-beta.5">
  <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="27"/>
  <application android:label="NeatReader · 多看式触控区" android:allowBackup="false" android:hasCode="true">
   <meta-data android:name="xposedmodule" android:value="true"/>
-  <meta-data android:name="xposeddescription" android:value="NeatReader-only center reading menu; keeps native page-turn gestures"/>
+  <meta-data android:name="xposeddescription" android:value="NeatReader center tap shows native reading menu and OEM status bar together"/>
   <meta-data android:name="xposedminversion" android:value="82"/>
  </application>
 </manifest>

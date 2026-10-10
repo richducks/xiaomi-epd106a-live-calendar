@@ -76,11 +76,11 @@ bash scripts/test-device.sh --power-cycle  # 需要人工同意，改变当前�
 
 完整工程/产品验收、测试日志和待办见 [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md)。本仓库第一方代码采用 [Apache-2.0](LICENSE) 协议；商标属于各自所有者，非厂商或第三方项目官方产品。
 
-## NeatReader 原生菜单触控（EPD106A 专用）
+## NeatReader + 墨案系统栏联动触控（EPD106A 专用）
 
-在 NeatReader 阅读页**轻点正中间**，直接显示 NeatReader 自带的工具栏：顶部返回／书签／搜索，底部阅读进度及「目录／笔记／书签／设置」。再次轻点正中间关闭。**不再存在自制的四按钮菜单。** 上方菜单也保留 NeatReader 自己的行为，因此两处使用的是真正同一套界面。
+在 NeatReader 阅读页**轻点正中间**，一次操作同时显示两套原生界面：**NeatReader** 顶部返回／书签／搜索、底部阅读进度及「目录／笔记／书签／设置」，以及**墨案系统顶部栏**的主页（小房子）／后退／Wi-Fi／电量。再次轻点正中间，恢复阅读全屏。**不使用自制按钮，也不展开会遮住全页的通知面板。**
 
-左右翻页仍由 NeatReader 原生处理；中央滑动、多点触控和长按会按坐标交回原生阅读视图。模块仅在包 `com.gzhi.neatreader.r2.main` 的 `BookReaderActivity` 附加一个中央透明触控区。它只切换该 Activity 已经存在的 `ll_layer_top`、`ll_layer_bot` 视图，无厂商文件修改，也不创建新菜单界面。
+左右区域翻页仍由 NeatReader 原生处理；中央滑动、多点触控和长按按原坐标交回阅读视图。模块仅在包 `com.gzhi.neatreader.r2.main` 的 `BookReaderActivity` 附加中央透明触控区，复用 `ll_layer_top`、`ll_layer_bot` 并临时调整该 Activity 的系统栏可见性；离开页面会恢复原窗口状态。不会修改多看、固件或全局系统栏。
 
 首次使用：安装 `eink-neat-touchzones.apk`，在 LSPosed 中只选择 **Neat Reader**（不能选择 Android Framework 或多看），随后重启 NeatReader 应用。在 Ubuntu 执行：
 

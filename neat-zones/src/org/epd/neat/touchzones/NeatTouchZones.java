@@ -3,6 +3,8 @@ package org.epd.neat.touchzones;
 import android.app.Activity;
 import android.graphics.Color;
 import android.util.Log;
+import android.view.Window;
+import android.view.WindowManager;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewConfiguration;
@@ -19,13 +21,10 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage;
  * App-specific compatibility layer. Do not hook system_server, Duokan,
  * key events or NeatReader's protected ebook parsing engine.
  *
- * A short center tap toggles the two ACTUAL NeatReader control layers:
- * ll_layer_top / ll_layer_bot, already in BookReaderActivity's view hierarchy.
- * There is no second menu UI, PopupWindow, Dialog or global display override.
- *
- * Outside the center zone NeatReader receives input unchanged. A drag,
- * multi-touch or long hold inside the center is forwarded to the underlying
- * reader rather than performing a page change or opening the menu.
+ * A center tap shows the two native NeatReader toolbars together with
+ * the OEM status bar (Home, Back, Wi-Fi and battery). Neither menu obscures
+ * the other: the notification shade is never expanded.
+ * Outside the center zone, original paging and gestures are unchanged.
  */
 public final class NeatTouchZones implements IXposedHookLoadPackage {
   private static final String TAG="NeatDuokanZones";
@@ -76,7 +75,7 @@ public final class NeatTouchZones implements IXposedHookLoadPackage {
         }
       }
     });
-    XposedBridge.log("NEAT_NATIVE_TOP_AND_CENTER_HOOK_LOADED reader-scoped only");
+    XposedBridge.log("NEAT_DUAL_MENU_HOOK_LOADED reader-scoped only");
   }
   private static int id(Activity a,String name){
     return a.getResources().getIdentifier(name,"id",PACKAGE);
@@ -90,19 +89,16 @@ public final class NeatTouchZones implements IXposedHookLoadPackage {
       if(!enabled()||a.isFinishing()||!isReader(a)||ZONES.containsKey(a))return;
       View decor=a.getWindow().getDecorView();
       if(!(decor instanceof FrameLayout)||decor.getWidth()<200||decor.getHeight()<200)return;
-      // These are original, inflation-time NeatReader views, not copies.
       View top=control(a,"ll_layer_top");
       View bottom=control(a,"ll_layer_bot");
       if(top==null||bottom==null){
         XposedBridge.log("NEAT_NATIVE_LAYERS_MISSING top="+(top!=null)+" bottom="+(bottom!=null));
-        Log.w(TAG,"Native reader layers not found; leave touch handling alone");
-        return;
+        return; // No interception if native menus are absent.
       }
       Zone zone=new Zone(a,(FrameLayout)decor,top,bottom);
       zone.attach();
       ZONES.put(a,zone);
-      XposedBridge.log("NEAT_NATIVE_CENTER_READY "+decor.getWidth()+"x"+decor.getHeight()
-          +" top="+top.getVisibility()+" bottom="+bottom.getVisibility());
+      XposedBridge.log("NEAT_DUAL_MENU_READY "+decor.getWidth()+"x"+decor.getHeight());
     }catch(Throwable t){
       Log.e(TAG,"Failed to attach optional reader zone; native paging preserved",t);
     }
@@ -112,6 +108,9 @@ public final class NeatTouchZones implements IXposedHookLoadPackage {
     final FrameLayout decor;
     final View top,bottom;
     View center;
+    boolean systemBarShown;
+    boolean originallyFullscreen;
+    int originalSystemUiFlags;
     MotionEvent originalDown;
     Runnable holdForward;
     boolean forwarding;
@@ -133,6 +132,7 @@ public final class NeatTouchZones implements IXposedHookLoadPackage {
       center.setOnTouchListener(this);
     }
     void detach(){
+      restoreSystemBar();
       stopHold();
       if(center!=null && center.getParent()==decor) decor.removeView(center);
       center=null;
@@ -161,11 +161,39 @@ public final class NeatTouchZones implements IXposedHookLoadPackage {
       if(holdForward!=null&&center!=null)center.removeCallbacks(holdForward);
       dispatchUnder(originalDown);
     }
+    private static final int HIDDEN_BAR_FLAGS =
+        View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
+        View.SYSTEM_UI_FLAG_IMMERSIVE | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY |
+        View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
+        View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
+        View.SYSTEM_UI_FLAG_LAYOUT_STABLE |
+        View.SYSTEM_UI_FLAG_LOW_PROFILE;
+    private void showSystemBar(){
+      if(systemBarShown)return;
+      Window window=activity.getWindow();
+      originallyFullscreen=(window.getAttributes().flags &
+          WindowManager.LayoutParams.FLAG_FULLSCREEN)!=0;
+      originalSystemUiFlags=decor.getSystemUiVisibility();
+      systemBarShown=true;
+      // Expose the slim OEM bar, not an opaque notification shade.
+      window.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+      decor.setSystemUiVisibility(originalSystemUiFlags & ~HIDDEN_BAR_FLAGS);
+      XposedBridge.log("NEAT_OEM_STATUS_BAR_SHOW");
+    }
+    private void restoreSystemBar(){
+      if(!systemBarShown)return;
+      Window window=activity.getWindow();
+      if(originallyFullscreen)window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+      else window.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+      decor.setSystemUiVisibility(originalSystemUiFlags);
+      systemBarShown=false;
+      XposedBridge.log("NEAT_OEM_STATUS_BAR_RESTORE");
+    }
     private void toggleNativeMenu(){
-      // Both views come from NeatReader's real BookReaderActivity layout.
-      // Using them avoids two conflicting menus and reuses native actions.
       boolean show=top.getVisibility()!=View.VISIBLE
           ||bottom.getVisibility()!=View.VISIBLE;
+      if(show)showSystemBar();
+      else restoreSystemBar();
       top.setVisibility(show?View.VISIBLE:View.GONE);
       bottom.setVisibility(show?View.VISIBLE:View.GONE);
       top.invalidate();bottom.invalidate();
