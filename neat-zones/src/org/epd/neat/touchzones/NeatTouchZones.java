@@ -1,20 +1,13 @@
 package org.epd.neat.touchzones;
 
 import android.app.Activity;
-import android.content.Context;
 import android.graphics.Color;
-import android.graphics.Typeface;
-import android.os.SystemClock;
 import android.util.Log;
-import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewConfiguration;
-import android.view.ViewGroup;
+import android.view.Gravity;
 import android.widget.FrameLayout;
-import android.widget.LinearLayout;
-import android.widget.TextView;
-import java.lang.ref.WeakReference;
 import java.util.WeakHashMap;
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.XC_MethodHook;
@@ -23,189 +16,202 @@ import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
 
 /**
- * Small, NeatReader-only compatibility layer; no vendor code.
+ * App-specific compatibility layer. Do not hook system_server, Duokan,
+ * key events or NeatReader's protected ebook parsing engine.
  *
- * All touch handling is by TWO transparent child Views in the NeatReader
- * window (not a global Activity.dispatchTouchEvent hook).
- * Center or upper-region tap -> lightweight in-window menu.
- * Native left/right pagination elsewhere remains untouched.
- * No PopupWindow / Dialog / separate full-screen Surface to flash on E Ink.
+ * A short center tap toggles the two ACTUAL NeatReader control layers:
+ * ll_layer_top / ll_layer_bot, already in BookReaderActivity's view hierarchy.
+ * There is no second menu UI, PopupWindow, Dialog or global display override.
+ *
+ * Outside the center zone NeatReader receives input unchanged. A drag,
+ * multi-touch or long hold inside the center is forwarded to the underlying
+ * reader rather than performing a page change or opening the menu.
  */
 public final class NeatTouchZones implements IXposedHookLoadPackage {
-  static final String PKG="com.gzhi.neatreader.r2.main";
-  static final String READER="com.gzhi.neatreader.r2.navigator.reader.BookReaderActivity";
-  static final String TAG="NeatDuokanZones";
-  static final WeakHashMap<Activity,Zones> ZONES=new WeakHashMap<>();
-  static final ThreadLocal<Boolean> NATIVE_DISPATCH=new ThreadLocal<>();
-  static int dp(Context c,int v){return Math.round(v*c.getResources().getDisplayMetrics().density);}
-  static boolean isReader(Activity a){return READER.equals(a.getClass().getName());}
+  private static final String TAG="NeatDuokanZones";
+  private static final String PACKAGE="com.gzhi.neatreader.r2.main";
+  private static final String READER="com.gzhi.neatreader.r2.navigator.reader.BookReaderActivity";
+  private static final WeakHashMap<Activity,Zone> ZONES=new WeakHashMap<>();
+  private static final long HOLD_FORWARD_MS=320L;
+  private static final float ZONE_X=.33f,ZONE_Y=.35f,ZONE_W=.34f,ZONE_H=.30f;
+
+  private static boolean isReader(Activity a){
+    return READER.equals(a.getClass().getName());
+  }
+  private static boolean enabled(){
+    try{
+      Class<?> p=Class.forName("android.os.SystemProperties");
+      String value=(String)p.getMethod("get",String.class,String.class)
+          .invoke(null,"persist.epd.neatzones","0");
+      return "1".equals(value);
+    }catch(Throwable t){
+      return false; // opt-in only: failure leaves NeatReader fully native
+    }
+  }
   @Override public void handleLoadPackage(XC_LoadPackage.LoadPackageParam p) throws Throwable {
-    if(!PKG.equals(p.packageName)||!PKG.equals(p.processName))return;
-    XposedHelpers.findAndHookMethod(Activity.class,"onWindowFocusChanged",boolean.class,new XC_MethodHook(){
+    if(!PACKAGE.equals(p.packageName)||!PACKAGE.equals(p.processName))return;
+    XposedHelpers.findAndHookMethod(Activity.class,"onResume",new XC_MethodHook(){
       @Override protected void afterHookedMethod(MethodHookParam p){
         Activity a=(Activity)p.thisObject;
-        if(!isReader(a)||!Boolean.TRUE.equals(p.args[0]))return;
-        a.getWindow().getDecorView().postDelayed(()->attach(a),180);
+        if(!isReader(a))return;
+        View decor=a.getWindow().getDecorView();
+        decor.postDelayed(()->attach(a),250L);
+        decor.postDelayed(()->attach(a),900L);
+      }
+    });
+    XposedHelpers.findAndHookMethod(Activity.class,"onWindowFocusChanged",
+        boolean.class,new XC_MethodHook(){
+      @Override protected void afterHookedMethod(MethodHookParam p){
+        Activity a=(Activity)p.thisObject;
+        if(isReader(a)&&Boolean.TRUE.equals(p.args[0]))
+          a.getWindow().getDecorView().postDelayed(()->attach(a),200L);
       }
     });
     XposedHelpers.findAndHookMethod(Activity.class,"onPause",new XC_MethodHook(){
-      @Override protected void afterHookedMethod(MethodHookParam p){
+      @Override protected void beforeHookedMethod(MethodHookParam p){
         Activity a=(Activity)p.thisObject;
-        if(isReader(a)){Zones z=ZONES.remove(a);if(z!=null)z.detach();}
+        if(isReader(a)){
+          Zone old=ZONES.remove(a);
+          if(old!=null)old.detach();
+        }
       }
     });
-    XposedBridge.log("NEAT_MINIMAL_VIEW_OVERLAY_HOOK_LOADED NeatReader only");
+    XposedBridge.log("NEAT_NATIVE_TOP_AND_CENTER_HOOK_LOADED reader-scoped only");
   }
-  static void attach(Activity a){
+  private static int id(Activity a,String name){
+    return a.getResources().getIdentifier(name,"id",PACKAGE);
+  }
+  private static View control(Activity a,String name){
+    int i=id(a,name);
+    return i==0?null:a.findViewById(i);
+  }
+  private static void attach(Activity a){
     try{
-      if(a.isFinishing()||!isReader(a))return;
-      if(ZONES.containsKey(a))return;
+      if(!enabled()||a.isFinishing()||!isReader(a)||ZONES.containsKey(a))return;
       View decor=a.getWindow().getDecorView();
-      if(!(decor instanceof FrameLayout)||decor.getWidth()<200||decor.getHeight()<250)return;
-      Zones z=new Zones(a,(FrameLayout)decor);
-      ZONES.put(a,z);
-      z.attach();
-      XposedBridge.log("NEAT_IN_WINDOW_TOUCH_ZONES_ATTACHED "+decor.getWidth()+"x"+decor.getHeight());
-      decor.postDelayed(()->applyFastRefreshIfEnabled(a),250);
-    }catch(Throwable t){Log.e(TAG,"attach failed; stock reader remains",t);}
-  }
-  static void applyFastRefreshIfEnabled(Activity a){
-    try{
-      Class<?> system=Class.forName("android.os.SystemProperties");
-      String opt=(String)system.getMethod("get",String.class,String.class)
-          .invoke(null,"persist.epd.neatfast","0");
-      if(!"1".equals(opt))return;
-      View decor=a.getWindow().getDecorView();
-      java.lang.reflect.Method get=View.class.getDeclaredMethod("getViewRootImpl");
-      get.setAccessible(true);
-      Object root=get.invoke(decor);
-      if(root==null)return;
-      java.lang.reflect.Method set=root.getClass().getDeclaredMethod("setRefreshMode",int.class);
-      set.setAccessible(true);
-      set.invoke(root,1); // only NeatReader window; no global refresh prop.
-      XposedBridge.log("NEAT_DU_FAST_REFRESH_APPLIED");
-    }catch(Throwable t){Log.w(TAG,"Optional DU mode unsupported",t);}
-  }
-  static final class Zones {
-    final Activity a;
-    final FrameLayout decor;
-    View center,top;
-    LinearLayout menu;
-    Zones(Activity a,FrameLayout decor){this.a=a;this.decor=decor;}
-    void attach(){
-      final int w=decor.getWidth(),h=decor.getHeight();
-      // Intentional small center zone: most of page remains native for
-      // selecting words, swiping, and long pressing.
-      center=zone("center",Math.round(w*.32f),Math.round(h*.34f),
-          Math.round(w*.36f),Math.round(h*.32f));
-      top=zone("top",Math.round(w*.19f),Math.round(h*.06f),
-          Math.round(w*.62f),Math.round(h*.11f));
-      buildMenuOnce();
+      if(!(decor instanceof FrameLayout)||decor.getWidth()<200||decor.getHeight()<200)return;
+      // These are original, inflation-time NeatReader views, not copies.
+      View top=control(a,"ll_layer_top");
+      View bottom=control(a,"ll_layer_bot");
+      if(top==null||bottom==null){
+        XposedBridge.log("NEAT_NATIVE_LAYERS_MISSING top="+(top!=null)+" bottom="+(bottom!=null));
+        Log.w(TAG,"Native reader layers not found; leave touch handling alone");
+        return;
+      }
+      Zone zone=new Zone(a,(FrameLayout)decor,top,bottom);
+      zone.attach();
+      ZONES.put(a,zone);
+      XposedBridge.log("NEAT_NATIVE_CENTER_READY "+decor.getWidth()+"x"+decor.getHeight()
+          +" top="+top.getVisibility()+" bottom="+bottom.getVisibility());
+    }catch(Throwable t){
+      Log.e(TAG,"Failed to attach optional reader zone; native paging preserved",t);
     }
-    View zone(String type,int x,int y,int w,int h){
-      View zone=new View(a);
-      zone.setBackgroundColor(Color.TRANSPARENT);
-      zone.setClickable(true);
-      FrameLayout.LayoutParams params=new FrameLayout.LayoutParams(w,h,Gravity.TOP|Gravity.LEFT);
-      params.leftMargin=x;params.topMargin=y;
-      decor.addView(zone,params);
-      zone.setOnTouchListener(new View.OnTouchListener(){
-        float downX,downY;
-        long started;
-        boolean moved;
-        @Override public boolean onTouch(View v,MotionEvent e){
-          switch(e.getActionMasked()){
-            case MotionEvent.ACTION_DOWN:
-              downX=e.getX();downY=e.getY();started=SystemClock.uptimeMillis();moved=false;return true;
-            case MotionEvent.ACTION_MOVE:
-              int slop=ViewConfiguration.get(a).getScaledTouchSlop();
-              if(Math.abs(e.getX()-downX)>slop||Math.abs(e.getY()-downY)>slop)moved=true;
-              return true;
-            case MotionEvent.ACTION_UP:
-              if(!moved&&SystemClock.uptimeMillis()-started<420){
-                toggleMenu();
-                XposedBridge.log("NEAT_SMALL_ZONE_TAPPED "+type);
-              }
-              return true;
-            case MotionEvent.ACTION_CANCEL:return true;
-          }
-          return true;
-        }
-      });
-      return zone;
+  }
+  private static final class Zone implements View.OnTouchListener {
+    final Activity activity;
+    final FrameLayout decor;
+    final View top,bottom;
+    View center;
+    MotionEvent originalDown;
+    Runnable holdForward;
+    boolean forwarding;
+    float downX,downY;
+
+    Zone(Activity a,FrameLayout d,View t,View b){
+      activity=a;decor=d;top=t;bottom=b;
+    }
+    void attach(){
+      center=new View(activity);
+      center.setBackgroundColor(Color.TRANSPARENT);
+      center.setClickable(true);
+      int w=decor.getWidth(),h=decor.getHeight();
+      FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(
+          Math.round(w*ZONE_W),Math.round(h*ZONE_H),Gravity.LEFT|Gravity.TOP);
+      lp.leftMargin=Math.round(w*ZONE_X);
+      lp.topMargin=Math.round(h*ZONE_Y);
+      decor.addView(center,lp);
+      center.setOnTouchListener(this);
     }
     void detach(){
-      if(menu!=null && menu.getParent()==decor)decor.removeView(menu);
-      if(center!=null && center.getParent()==decor)decor.removeView(center);
-      if(top!=null && top.getParent()==decor)decor.removeView(top);
-      menu=null;
+      stopHold();
+      if(center!=null && center.getParent()==decor) decor.removeView(center);
+      center=null;
     }
-    void closeMenu(){
-      // INVISIBLE retains the exact layout slot; repeated add/remove of a View
-      // can force WebView layout and provoke a reload/white blink on E-Ink.
-      if(menu!=null)menu.setVisibility(View.INVISIBLE);
+    void stopHold(){
+      if(center!=null&&holdForward!=null)center.removeCallbacks(holdForward);
+      holdForward=null;
+      if(originalDown!=null){originalDown.recycle();originalDown=null;}
+      forwarding=false;
     }
-    void toggleMenu(){
-      if(menu==null)return;
-      if(menu.getVisibility()==View.VISIBLE)closeMenu();else showMenu();
+    void dispatchUnder(MotionEvent event){
+      if(center==null)return;
+      // Events from the center View are in its LOCAL coordinates. The
+      // Activity's dispatchTouchEvent expects WINDOW coordinates instead.
+      // Translate a COPY so native word selection and swipes still hit the
+      // exact original point, without mutating the caller's MotionEvent.
+      MotionEvent copy=MotionEvent.obtain(event);
+      copy.offsetLocation(center.getLeft(),center.getTop());
+      center.setVisibility(View.GONE);
+      try{activity.dispatchTouchEvent(copy);}
+      finally{center.setVisibility(View.VISIBLE);copy.recycle();}
     }
-    void buildMenuOnce(){
-      // Render in NeatReader's existing window and KEEP the row attached.
-      // No PopupWindow, dialog, additional Surface, or relayout on each tap.
-      menu=new LinearLayout(a);
-      menu.setOrientation(LinearLayout.HORIZONTAL);
-      menu.setBackgroundColor(Color.WHITE);
-      menu.setVisibility(View.INVISIBLE);
-      FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(-1,dp(a,58),Gravity.BOTTOM);
-      lp.bottomMargin=dp(a,70);
-      decor.addView(menu,lp);
-      addButton("上一页",()->pageTap(.14f));
-      addButton("下一页",()->pageTap(.86f));
-      addButton("更多设置",()->nativeTopMenu());
-      addButton("关闭",this::closeMenu);
+    void forwardDown(){
+      if(forwarding||originalDown==null)return;
+      forwarding=true;
+      if(holdForward!=null&&center!=null)center.removeCallbacks(holdForward);
+      dispatchUnder(originalDown);
     }
-    void showMenu(){
-      if(menu==null)buildMenuOnce();
-      menu.setVisibility(View.VISIBLE);
-      menu.invalidate();
-      XposedBridge.log("NEAT_IN_WINDOW_MENU_OPENED");
+    private void toggleNativeMenu(){
+      // Both views come from NeatReader's real BookReaderActivity layout.
+      // Using them avoids two conflicting menus and reuses native actions.
+      boolean show=top.getVisibility()!=View.VISIBLE
+          ||bottom.getVisibility()!=View.VISIBLE;
+      top.setVisibility(show?View.VISIBLE:View.GONE);
+      bottom.setVisibility(show?View.VISIBLE:View.GONE);
+      top.invalidate();bottom.invalidate();
+      XposedBridge.log("NEAT_ORIGINAL_READER_MENU_"+(show?"OPEN":"CLOSE"));
     }
-    void addButton(String label,Runnable action){
-      TextView v=new TextView(a);
-      v.setText(label);v.setTextSize(15);v.setTypeface(Typeface.DEFAULT,Typeface.NORMAL);
-      v.setTextColor(Color.BLACK);v.setGravity(Gravity.CENTER);
-      menu.addView(v,new LinearLayout.LayoutParams(0,-1,1));
-      v.setOnClickListener(view->action.run());
-    }
-    void pageTap(float fraction){
-      closeMenu();
-      // Use NeatReader's native left/right paging implementation, do not
-      // reimplement pagination, network IO or protected EPUB internals.
-      injectNativeTap(decor.getWidth()*fraction,decor.getHeight()*.5f);
-    }
-    void nativeTopMenu(){
-      closeMenu();
-      // Explicit opt-in to original NeatReader settings: may still trigger
-      // its original full-screen refresh, unlike this fast in-window menu.
-      injectNativeTap(decor.getWidth()*.50f,decor.getHeight()*.08f);
-    }
-    void injectNativeTap(float x,float y){
-      a.getWindow().getDecorView().postDelayed(()->{
-        boolean hiddenC=center!=null && center.getVisibility()==View.VISIBLE;
-        boolean hiddenT=top!=null && top.getVisibility()==View.VISIBLE;
-        if(hiddenC)center.setVisibility(View.GONE);
-        if(hiddenT)top.setVisibility(View.GONE);
-        long time=SystemClock.uptimeMillis();
-        MotionEvent down=MotionEvent.obtain(time,time,MotionEvent.ACTION_DOWN,x,y,0);
-        MotionEvent up=MotionEvent.obtain(time,time+60,MotionEvent.ACTION_UP,x,y,0);
-        try{a.dispatchTouchEvent(down);a.dispatchTouchEvent(up);}
-        catch(Throwable t){Log.e(TAG,"native page tap failed",t);}
-        finally{
-          down.recycle();up.recycle();
-          if(hiddenC)center.setVisibility(View.VISIBLE);
-          if(hiddenT)top.setVisibility(View.VISIBLE);
+    @Override public boolean onTouch(View view,MotionEvent e){
+      try{
+        int action=e.getActionMasked();
+        switch(action){
+          case MotionEvent.ACTION_DOWN:
+            stopHold();
+            originalDown=MotionEvent.obtain(e);
+            downX=e.getX();downY=e.getY();
+            forwarding=false;
+            holdForward=()->{if(originalDown!=null)forwardDown();};
+            center.postDelayed(holdForward,HOLD_FORWARD_MS);
+            return true;
+          case MotionEvent.ACTION_MOVE:
+            if(!forwarding){
+              int slop=ViewConfiguration.get(activity).getScaledTouchSlop();
+              if(Math.abs(e.getX()-downX)>slop||Math.abs(e.getY()-downY)>slop)
+                forwardDown();
+            }
+            if(forwarding)dispatchUnder(e);
+            return true;
+          case MotionEvent.ACTION_POINTER_DOWN:
+          case MotionEvent.ACTION_POINTER_UP:
+            if(!forwarding)forwardDown();
+            if(forwarding)dispatchUnder(e);
+            return true;
+          case MotionEvent.ACTION_UP:
+            if(forwarding)dispatchUnder(e);
+            else toggleNativeMenu();
+            stopHold();
+            return true;
+          case MotionEvent.ACTION_CANCEL:
+            if(forwarding)dispatchUnder(e);
+            stopHold();
+            return true;
         }
-      },50);
+        if(forwarding)dispatchUnder(e);
+      }catch(Throwable t){
+        Log.e(TAG,"Center touch failed; disabling this event only",t);
+        stopHold();
+      }
+      return true;
     }
   }
 }

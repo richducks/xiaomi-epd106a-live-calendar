@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
- package="org.epd.neat.touchzones" android:versionCode="2" android:versionName="0.1.1-beta.2">
+ package="org.epd.neat.touchzones" android:versionCode="3" android:versionName="0.1.1-beta.3">
  <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="27"/>
  <application android:label="NeatReader · 多看式触控区" android:allowBackup="false" android:hasCode="true">
   <meta-data android:name="xposedmodule" android:value="true"/>

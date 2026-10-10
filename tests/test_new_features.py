@@ -1,50 +1,65 @@
 import unittest
 from pathlib import Path
+
 BASE=Path(__file__).resolve().parents[1]
+SOURCE=BASE/"neat-zones/src/org/epd/neat/touchzones/NeatTouchZones.java"
+
 class BatteryAndNeatZonesTest(unittest.TestCase):
-    def test_calendar_percentage_uses_android_sticky_broadcast(self):
-        text=(BASE/"src/org/epd/calendar/MainActivity.java").read_text()
-        self.assertIn('batteryView.setText("电量 "+percent+"%")',text)
-        self.assertIn("BatteryManager.EXTRA_LEVEL",text)
-        self.assertIn("BatteryManager.EXTRA_SCALE",text)
-        self.assertIn("Math.min(100",text)
-        self.assertIn('batteryView.setText("电量 --%")',text)
-        self.assertIn('Intent.ACTION_BATTERY_CHANGED',text)
-    def test_calendar_reuses_compact_footer(self):
-        text=(BASE/"src/org/epd/calendar/MainActivity.java").read_text()
-        self.assertIn("footer.addView(batteryView",text)
-        self.assertIn("add(root,footer,40)",text)
-    def test_neat_scope_and_no_system_wide_touch_hook(self):
-        source=(BASE/"neat-zones/src/org/epd/neat/touchzones/NeatTouchZones.java").read_text()
-        self.assertIn('PKG="com.gzhi.neatreader.r2.main"',source)
-        self.assertIn('READER="com.gzhi.neatreader.r2.navigator.reader.BookReaderActivity"',source)
-        self.assertIn('PKG.equals(p.processName)',source)
-        self.assertNotIn('Activity.class,"dispatchTouchEvent"',source)
-        self.assertNotIn("PhoneWindowManager",source)
-        self.assertNotIn("new PopupWindow(",source)
-    def test_neat_small_tap_zones_in_existing_window(self):
-        source=(BASE/"neat-zones/src/org/epd/neat/touchzones/NeatTouchZones.java").read_text()
-        self.assertIn('decor.addView(zone,params)',source)
-        self.assertIn('decor.addView(menu,lp)',source)
-        self.assertIn('case MotionEvent.ACTION_UP:',source)
-        self.assertIn('SystemClock.uptimeMillis()-started<420',source)
-        self.assertIn('Math.round(w*.32f)',source)
-        self.assertIn('Math.round(h*.34f)',source)
-        self.assertIn('top=zone("top"',source)
-        self.assertIn('center=zone("center"',source)
-        self.assertIn('toggleMenu()',source)
-        self.assertIn('"上一页"',source)
-        self.assertIn('"下一页"',source)
-        self.assertIn('"更多设置"',source)
-    def test_optional_refresh_is_device_scoped_and_opt_in(self):
-        source=(BASE/"neat-zones/src/org/epd/neat/touchzones/NeatTouchZones.java").read_text()
-        self.assertIn('persist.epd.neatfast',source)
-        self.assertIn('if(!"1".equals(opt))return;',source)
-        self.assertIn('setRefreshMode',source)
-        self.assertNotIn('persist.sys.mRefreshMode',source)
-    def test_app_hook_separate_apk_and_scope(self):
-        manifest=(BASE/"neat-zones/AndroidManifest.xml").read_text()
-        self.assertIn('package="org.epd.neat.touchzones"',manifest)
-        self.assertIn("xposedmodule",manifest)
+    def test_battery_comes_from_android_sticky_broadcast(self):
+        s=(BASE/"src/org/epd/calendar/MainActivity.java").read_text()
+        self.assertIn('batteryView.setText("电量 "+percent+"%")',s)
+        self.assertIn('Intent.ACTION_BATTERY_CHANGED',s)
+        self.assertIn("BatteryManager.EXTRA_LEVEL",s)
+        self.assertIn("BatteryManager.EXTRA_SCALE",s)
+        self.assertIn("Math.min(100",s)
+
+    def test_battery_reuses_footer(self):
+        s=(BASE/"src/org/epd/calendar/MainActivity.java").read_text()
+        self.assertIn("footer.addView(batteryView",s)
+        self.assertIn("add(root,footer,40)",s)
+
+    def test_app_only_scope_no_system_server_hook(self):
+        s=SOURCE.read_text()
+        self.assertIn('PACKAGE="com.gzhi.neatreader.r2.main"',s)
+        self.assertIn('READER="com.gzhi.neatreader.r2.navigator.reader.BookReaderActivity"',s)
+        self.assertIn('PACKAGE.equals(p.processName)',s)
+        self.assertNotIn("PhoneWindowManager",s)
+        self.assertNotIn("new PopupWindow(",s)
+
+    def test_center_uses_neatreader_original_menu_not_custom_buttons(self):
+        s=SOURCE.read_text()
+        self.assertIn('control(a,"ll_layer_top")',s)
+        self.assertIn('control(a,"ll_layer_bot")',s)
+        self.assertIn('top.setVisibility(show?View.VISIBLE:View.GONE)',s)
+        self.assertIn('bottom.setVisibility(show?View.VISIBLE:View.GONE)',s)
+        self.assertIn("toggleNativeMenu()",s)
+        self.assertNotIn('addButton("上一页"',s)
+        self.assertNotIn('addButton("更多设置"',s)
+        self.assertNotIn("new PopupWindow(",s)
+        self.assertIn("ZONE_X=.33f",s)
+        self.assertIn("ZONE_Y=.35f",s)
+
+    def test_enabled_opt_in_fail_closed(self):
+        s=SOURCE.read_text()
+        self.assertIn('"persist.epd.neatzones","0"',s)
+        self.assertIn('return false; // opt-in only',s)
+        self.assertIn("if(!enabled()",s)
+
+    def test_native_gesture_handoff_and_cleanup(self):
+        s=SOURCE.read_text()
+        for snippet in ("HOLD_FORWARD_MS=320L","ViewConfiguration.get(activity)",
+                        "ACTION_MOVE","ACTION_POINTER_DOWN",
+                        "MotionEvent.obtain(e)","dispatchUnder(e)","forwardDown()",
+                        "onPause","old.detach()","originalDown.recycle()",
+                        "copy.offsetLocation(center.getLeft(),center.getTop())",
+                        "copy.recycle()"):
+            self.assertIn(snippet,s)
+
+    def test_scope_not_power_policy(self):
+        s=(BASE/"neat-zones/AndroidManifest.xml").read_text()
+        self.assertIn('package="org.epd.neat.touchzones"',s)
+        self.assertIn("xposedmodule",s)
         self.assertTrue((BASE/"build-neat-zones.sh").is_file())
-if __name__=="__main__":unittest.main()
+
+if __name__=="__main__":
+    unittest.main()

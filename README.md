@@ -76,10 +76,19 @@ bash scripts/test-device.sh --power-cycle  # 需要人工同意，改变当前�
 
 完整工程/产品验收、测试日志和待办见 [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md)。本仓库第一方代码采用 [Apache-2.0](LICENSE) 协议；商标属于各自所有者，非厂商或第三方项目官方产品。
 
-## NeatReader 多看式触控区域（独立组件）
+## NeatReader 原生菜单触控（EPD106A 专用）
 
-`bash build-neat-zones.sh` 生成 `build/output/eink-neat-touchzones.apk`。模块仅通过 LSPosed 勾选 Neat Reader 作用域，**切勿勾选系统框架或多看**。在原生书籍页轻点屏幕中央或顶部中间区域，会显示位于页面底部的四按钮菜单：上一页、下一页、更多设置、关闭。左、右区域仍交给 NeatReader 原生翻页。
+在 NeatReader 阅读页**轻点正中间**，直接显示 NeatReader 自带的工具栏：顶部返回／书签／搜索，底部阅读进度及「目录／笔记／书签／设置」。再次轻点正中间关闭。**不再存在自制的四按钮菜单。** 上方菜单也保留 NeatReader 自己的行为，因此两处使用的是真正同一套界面。
 
-菜单只在同一个 Activity 视图中常驻并切换显隐，不创建独立 PopupWindow，也不重复加载书籍内容。`更多设置` 会调用 NeatReader 原生菜单，该菜单仍可能自行整屏刷新。默认 `persist.epd.neatfast=0`，可选 DU 局刷模式须单独验证后开启；它不能消除 NeatReader 私有电子书解析/加载转圈。
+左右翻页仍由 NeatReader 原生处理；中央滑动、多点触控和长按会按坐标交回原生阅读视图。模块仅在包 `com.gzhi.neatreader.r2.main` 的 `BookReaderActivity` 附加一个中央透明触控区。它只切换该 Activity 已经存在的 `ll_layer_top`、`ll_layer_bot` 视图，无厂商文件修改，也不创建新菜单界面。
 
-Android 锁屏日历底部显示通过 `ACTION_BATTERY_CHANGED` 获取的实时 `电量 XX%`。
+首次使用：安装 `eink-neat-touchzones.apk`，在 LSPosed 中只选择 **Neat Reader**（不能选择 Android Framework 或多看），随后重启 NeatReader 应用。在 Ubuntu 执行：
+
+```bash
+adb shell 'su -c "resetprop persist.epd.neatzones 1"'
+# 如果 NeatReader 出现异常，立即停用，仅停用这项触控修改：
+adb shell 'su -c "resetprop persist.epd.neatzones 0"'
+adb shell am force-stop com.gzhi.neatreader.r2.main
+```
+
+**限制：** 可选的墨水屏 DU 快刷尚未纳入这个触控修复，它无法保证解决 NeatReader 原本的加载转圈和整屏刷新。未在实际 20 次以上连续翻页或大批量书籍上验证；不要将菜单成功等同于全局流畅度达标。
