@@ -50,6 +50,15 @@ class AutoTimeoutTests(unittest.TestCase):
                          'NEAT_ALLOW_IDLE_TIMEOUT_KEEP_ON_CLEARED'):
             self.assertIn(fragment,zones)
 
+    def test_oem_suspend_logo_skipped_only_during_guarded_timeout(self):
+        self.assertIn('"showSuspendLogo",new XC_MethodHook()',SOURCE)
+        self.assertIn('suppressLogoUntilUptimeMs=SystemClock.uptimeMillis()+2500L;',SOURCE)
+        self.assertIn('suppressLogoUntilUptimeMs>now',SOURCE)
+        self.assertIn('featureEnabled(ENABLE)&&featureEnabled(AUTO_ENABLE)',SOURCE)
+        self.assertIn('AUTO_TIMEOUT_VENDOR_SUSPEND_LOGO_SKIPPED',SOURCE)
+        self.assertIn('private static void safeSleep(Context ctx){\n    // Native sleep',SOURCE)
+        self.assertIn('suppressLogoUntilUptimeMs=0;',SOURCE)
+
     def test_live_display_and_exit_restore_native_reader(self):
         self.assertIn('FLAG_KEEP_SCREEN_ON',MAIN)
         self.assertIn('MIN_BATTERY_TO_REMAIN_ON=25',MAIN)

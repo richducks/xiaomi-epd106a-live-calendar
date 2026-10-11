@@ -4,6 +4,10 @@
 
 本版在**现有 system_server 模块**中增加了**精确方法签名、原因、flags 与 uid**守卫。仅 `persist.epd.liveclock=1` 且 `persist.epd.autoclock=1` 时，才取消对应超时休眠，异步启动**同一个** `org.epd.calendar.MainActivity`；长按电源、其他系统休眠和屏幕保护路径不变。处理失败、Root/LSPosed 未准备好时，优先保留厂商原生休眠；电池低于 30% 且未充电时也恢复普通图片休眠，避免电池过放。
 
+**v0.2.2 额外处理静态图闪一下：**墨案还会在超时事件后另行调用 `PowerManagerService.showSuspendLogo()`，即使先前的 `goToSleepNoUpdateLocked` 已被取消，它仍可能短暂创建显示上一张静态壁纸的顶层 Window。仅在已经获准的**当前自动超时转换后的 2500 毫秒内**，阻止这一个 OEM 绘图方法执行；不覆盖普通电源操作、未启用自动日历或低电量时的静态休眠。源方法和时间窗均是 EPD106A 的厂家定制实现。实机日志应出现 `AUTO_TIMEOUT_VENDOR_SUSPEND_LOGO_SKIPPED`。该日志证明软件未创建静态窗口，不等于硬件绝不会发生墨水屏刷新闪烁。
+
+同时已将设备 `/data/mogu/336369004.png` 中此前测试使用的**静态日历截图**移除并恢复测试前备份的原始静态壁纸（SHA-256 已校验），保证低电量正常休眠有安全回退图片。临时 `/sdcard/__autoclock*.png` 和 `/sdcard/__neat*.png` 测试截图已清理；未删除个人照片、书籍及原始壁纸备份。
+
 **这不是低功耗真休眠。** 动态时钟需要显示层处于 ON 状态才能每分钟更新，因此该模式比静态墨案待机壁纸耗电。日历本身另设 25% 电量保护。实际续航应观察，不能声称持续动态显示与断电待机等耗电。
 
 启用（务必先安装新版 `eink-livecalendar-policy.apk`，在 LSPosed 中只赋予 Android Framework 作用域并重启）：

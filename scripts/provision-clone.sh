@@ -3,7 +3,7 @@
 set -euo pipefail
 BASE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PROFILE_FINGERPRINT='Allwinner/virgo_perf1/virgo-perf1:8.1.0/OPM1.171019.026/20240424-143400:user/test-keys'
-TAG='v0.2.1-auto-timeout.1'
+TAG='v0.2.2-no-wallpaper-flash.1'
 REPO='richducks/xiaomi-epd106a-live-calendar'
 MODE="${1:---check}"
 case "$MODE" in --check|--install|--activate) ;; *) echo 'Usage: bash scripts/provision-clone.sh [--check|--install|--activate]' >&2; exit 2;; esac

@@ -30,6 +30,8 @@ public final class PowerPolicyHook implements IXposedHookLoadPackage {
   private static final String CLOCK_ACTIVITY="org.epd.calendar.MainActivity";
   private static final String ACTION_EXIT="org.epd.calendar.EXIT_CLOCK";
   private static final AtomicBoolean BUSY=new AtomicBoolean(false);
+  // Short-lived guard for the vendor SuspendLogo async drawable; never global.
+  private static volatile long suppressLogoUntilUptimeMs=0;
   private static volatile boolean circuitOpen=false;
   private static volatile int previousTask=-1;
   private static Handler worker;
@@ -108,25 +110,49 @@ public final class PowerPolicyHook implements IXposedHookLoadPackage {
               return;
             }
             if(!BUSY.compareAndSet(false,true))return;
+            // The OEM sometimes queues showSuspendLogo separately, even
+            // when goToSleepNoUpdateLocked returns false. Suppress only the
+            // pending timeout transition, never normal / low-battery sleep.
+            suppressLogoUntilUptimeMs=SystemClock.uptimeMillis()+2500L;
             // The intercepted private method returns boolean, NOT void.
-            // Returning false skips both sleep and OEM SuspendLogo.
             p.setResult(Boolean.FALSE);
             Log.i(TAG,"AUTO_TIMEOUT_INTERCEPT level="+level+" plugged="+plugged);
             worker.post(()->{
               try{handleTransition(ctx,true);}
               catch(Throwable ex){
+                suppressLogoUntilUptimeMs=0;
                 circuitOpen=true;
                 Log.e(TAG,"AUTO_TIMEOUT_FAILED; falling back to stock sleep",ex);
                 safeSleep(ctx);
               }finally{BUSY.set(false);}
             });
           }catch(Throwable ex){
+            suppressLogoUntilUptimeMs=0;
             BUSY.set(false);
             circuitOpen=true;
             Log.e(TAG,"AUTO_TIMEOUT_GUARD_FAILED; letting stock sleep execute",ex);
           }
         }
       });
+      // showSuspendLogo() is OEM-specific: a second async route can create
+      // its full-screen Window after the sleep decision was already skipped.
+      // Hook only this exact private void method. Any absent OEM signature
+      // leaves the rest of Android and the clock hook untouched.
+      try{
+        XposedHelpers.findAndHookMethod(powerService,"showSuspendLogo",new XC_MethodHook(){
+          @Override protected void beforeHookedMethod(MethodHookParam p){
+            long now=SystemClock.uptimeMillis();
+            if(!circuitOpen&&suppressLogoUntilUptimeMs>now
+                &&featureEnabled(ENABLE)&&featureEnabled(AUTO_ENABLE)){
+              p.setResult(null);
+              Log.i(TAG,"AUTO_TIMEOUT_VENDOR_SUSPEND_LOGO_SKIPPED");
+            }
+          }
+        });
+        XposedBridge.log("EPD_POLICY_VENDOR_SUSPEND_LOGO_GUARD_READY");
+      }catch(Throwable logoError){
+        Log.w(TAG,"OEM suspend logo hook unavailable; timeout policy still active",logoError);
+      }
       XposedBridge.log("EPD_POLICY_AUTO_TIMEOUT_HOOK_READY opt-in "+AUTO_ENABLE);
     }catch(Throwable e){
       Log.e(TAG,"Idle timeout hook unavailable; stock sleep unchanged",e);
@@ -191,6 +217,8 @@ public final class PowerPolicyHook implements IXposedHookLoadPackage {
   }
 
   private static void safeSleep(Context ctx){
+    // Native sleep must never inherit the temporary auto-clock logo guard.
+    suppressLogoUntilUptimeMs=0;
     try{
       PowerManager pm=(PowerManager)ctx.getSystemService(Context.POWER_SERVICE);
       if(pm!=null){
