@@ -7,6 +7,8 @@ echo "model: $("$ADB" shell getprop ro.product.model | tr -d '\r')"
 echo "boot_completed: $("$ADB" shell getprop sys.boot_completed | tr -d '\r')"
 echo "liveclock_property: $("$ADB" shell getprop persist.epd.liveclock | tr -d '\r')"
 echo "autoclock_property: $("$ADB" shell getprop persist.epd.autoclock | tr -d '\r')"
+echo "tenmin_experiment_property: $("$ADB" shell getprop persist.epd.tenmin | tr -d '\r')"
+echo "tenmin_test_property: $("$ADB" shell getprop persist.epd.tenmin.test | tr -d '\r')"
 "$ADB" shell pm path org.epd.calendar
 "$ADB" shell pm path org.epd.calendar.policy
 "$ADB" shell 'su -c "test -f /data/adb/post-fs-data.d/00-eink-livecalendar-recovery-guard.sh && echo GUARD_PRESENT || echo GUARD_MISSING"'

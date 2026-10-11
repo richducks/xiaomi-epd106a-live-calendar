@@ -92,8 +92,20 @@ public class MainActivity extends Activity {
     super.onWindowFocusChanged(focused);
     if(focused)getWindow().getDecorView().postDelayed(this::setupEinkMode,500);
   }
+  boolean isTenMinuteExperiment(){
+    try{
+      Class<?> p=Class.forName("android.os.SystemProperties");
+      String value=(String)p.getMethod("get",String.class,String.class)
+          .invoke(null,"persist.epd.tenmin","0");
+      return "1".equals(value);
+    }catch(Throwable e){return false;}
+  }
   void scheduleTick(){
     handler.removeCallbacks(tick);
+    if(isTenMinuteExperiment()){
+      android.util.Log.i("EinkCalendar","TENMIN_FOREGROUND_MINUTE_TICK_DISABLED");
+      return;
+    }
     long now=System.currentTimeMillis();
     long delay=60000L-(now%60000L);
     handler.postDelayed(tick,delay);
@@ -115,6 +127,15 @@ public class MainActivity extends Activity {
         android.util.Log.i("EinkCalendar","AUTO_STOP_PREVIEW_AFTER_TEST lifespan="+testLifespan);
         finish();
       },testLifespan);
+    }
+  }
+  @Override protected void onNewIntent(Intent intent){
+    super.onNewIntent(intent);
+    setIntent(intent);
+    if(intent!=null&&intent.getBooleanExtra("tenmin_rtc_refresh",false)){
+      update();
+      clock.invalidate();
+      android.util.Log.i("EinkCalendar","TENMIN_RTC_REFRESH_APPLIED text="+clock.getText());
     }
   }
   @Override protected void onResume(){

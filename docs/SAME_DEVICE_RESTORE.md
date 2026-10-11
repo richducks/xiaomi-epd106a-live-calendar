@@ -11,6 +11,8 @@
 
 以上是“配置目标”，而不是可跨设备直接刷写的出厂镜像。
 
+**10 分钟省电实验版（手动启用）：**安装新的万年历与电源策略模块后，另执行 `bash scripts/enable-tenmin.sh`，等待下次原生系统超时进入日历。此功能是选择性实验，不在普通 `--activate` 自动启用（避免未测固件发生未知唤醒/黑屏）。详情及回退见 [RTC 实验说明](TEN_MINUTE_RTC_EXPERIMENT.md)。
+
 ## A. 为当前设备建立本地可恢复检查点
 
 在 Ubuntu 连接当前设备，执行 `bash scripts/snapshot-private.sh`。

@@ -59,6 +59,27 @@ class AutoTimeoutTests(unittest.TestCase):
         self.assertIn('private static void safeSleep(Context ctx){\n    // Native sleep',SOURCE)
         self.assertIn('suppressLogoUntilUptimeMs=0;',SOURCE)
 
+    def test_opt_in_actual_sleep_and_rtc_wake_experiment(self):
+        for fragment in (
+            'TENMIN_ENABLE="persist.epd.tenmin"',
+            'TEN_MINUTES_MS=600000L',
+            'android.app.AlarmManager.RTC_WAKEUP',
+            'alarm.setExact(',
+            'getDeclaredMethod("goToSleep",long.class)',
+            'getDeclaredMethod("wakeUp",long.class)',
+            'worker.postDelayed(()->enterTenMinuteSleep(ctx,generation),PAINT_SETTLE_MS);',
+            'canTenMinuteCycle(ctx)', 'isClockForeground(ctx)',
+            'cancelTenMinuteCycle(ctx)',
+        ):
+            self.assertIn(fragment,SOURCE)
+
+    def test_test_interval_is_minute_only_and_not_default(self):
+        self.assertIn('EXPERIMENT_TEST_MS=60000L',SOURCE)
+        self.assertIn('featureEnabled(TENMIN_TEST)?EXPERIMENT_TEST_MS:TEN_MINUTES_MS',SOURCE)
+        self.assertIn('RTC_WAKEUP',SOURCE)
+        self.assertIn('TENMIN_RTC_WAKE_SCHEDULED',SOURCE)
+        self.assertIn('TENMIN_RTC_WAKE_FAILED',SOURCE)
+
     def test_live_display_and_exit_restore_native_reader(self):
         self.assertIn('FLAG_KEEP_SCREEN_ON',MAIN)
         self.assertIn('MIN_BATTERY_TO_REMAIN_ON=25',MAIN)

@@ -3,7 +3,7 @@
 set -euo pipefail
 BASE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PROFILE_FINGERPRINT='Allwinner/virgo_perf1/virgo-perf1:8.1.0/OPM1.171019.026/20240424-143400:user/test-keys'
-TAG='v0.2.2-no-wallpaper-flash.1'
+TAG='v0.3.0-ten-minute-alpha.2'
 REPO='richducks/xiaomi-epd106a-live-calendar'
 MODE="${1:---check}"
 case "$MODE" in --check|--install|--activate) ;; *) echo 'Usage: bash scripts/provision-clone.sh [--check|--install|--activate]' >&2; exit 2;; esac
@@ -31,7 +31,7 @@ check(){
   for package in org.epd.calendar org.epd.calendar.policy org.epd.neat.touchzones com.gzhi.neatreader.r2.main io.github.muntashirakon.AppManager; do
     if has_package "$package"; then echo "PACKAGE: installed $package"; else echo "PACKAGE: missing $package"; fi
   done
-  echo "liveclock: $(prop persist.epd.liveclock) | idle-autoclock: $(prop persist.epd.autoclock) | neat-zones: $(prop persist.epd.neatzones)"
+  echo "liveclock: $(prop persist.epd.liveclock) | autoclock: $(prop persist.epd.autoclock) | rtc-tenmin: $(prop persist.epd.tenmin) | neat-zones: $(prop persist.epd.neatzones)"
   echo 'REQUIRED SCOPES: org.epd.calendar.policy -> Android Framework; org.epd.neat.touchzones -> NeatReader only.'
 }
 assert_device
@@ -55,7 +55,7 @@ if [[ "$MODE" == --install ]]; then
   "$ADB" shell 'su -c "mkdir -p /data/adb/post-fs-data.d; if [ ! -e /data/adb/post-fs-data.d/00-eink-livecalendar-recovery-guard.sh ]; then cp /data/local/tmp/00-eink-livecalendar-recovery-guard.sh /data/adb/post-fs-data.d/00-eink-livecalendar-recovery-guard.sh; chmod 0700 /data/adb/post-fs-data.d/00-eink-livecalendar-recovery-guard.sh; fi"'
   "$ADB" shell 'su -c "test -f /data/adb/post-fs-data.d/00-eink-livecalendar-recovery-guard.sh"' || { echo 'ERROR: recovery guard missing' >&2; exit 1; }
   # A newly installed system-server hook must not become active before scopes are configured.
-  "$ADB" shell 'su -c "resetprop persist.epd.autoclock 0; resetprop persist.epd.liveclock 0; resetprop persist.epd.neatzones 0"'
+  "$ADB" shell 'su -c "resetprop persist.epd.tenmin 0; resetprop persist.epd.tenmin.test 0; resetprop persist.epd.autoclock 0; resetprop persist.epd.liveclock 0; resetprop persist.epd.neatzones 0"'
   for apk in eink-calendar.apk eink-livecalendar-policy.apk eink-neat-touchzones.apk; do
     "$ADB" install -r "$BASE/dist/$apk"
   done

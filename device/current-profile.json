@@ -23,6 +23,8 @@
   "verified_runtime_properties": {
     "persist.epd.liveclock": "1",
     "persist.epd.autoclock": "1",
+    "persist.epd.tenmin": "1",
+    "persist.epd.tenmin.test": "0",
     "persist.epd.neatzones": "1"
   },
   "device_specific_secrets_excluded": true

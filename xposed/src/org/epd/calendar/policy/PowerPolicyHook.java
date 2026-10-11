@@ -1,6 +1,7 @@
 package org.epd.calendar.policy;
 
 import android.app.ActivityManager;
+import android.app.AlarmManager;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -118,7 +119,10 @@ public final class PowerPolicyHook implements IXposedHookLoadPackage {
             p.setResult(Boolean.FALSE);
             Log.i(TAG,"AUTO_TIMEOUT_INTERCEPT level="+level+" plugged="+plugged);
             worker.post(()->{
-              try{handleTransition(ctx,true);}
+              try{
+                handleTransition(ctx,true);
+                if(featureEnabled(TENMIN_ENABLE))startTenMinuteCycle(ctx);
+              }
               catch(Throwable ex){
                 suppressLogoUntilUptimeMs=0;
                 circuitOpen=true;
@@ -161,6 +165,127 @@ public final class PowerPolicyHook implements IXposedHookLoadPackage {
     Log.i(TAG,"LegacyPolicyHook installed; disabled by default unless "+ENABLE+"=1");
   }
 
+
+  // EXPERIMENT: RTC wake, repaint the existing Activity, return to real sleep.
+  // This is intentionally opt-in because OEM e-ink framebuffer persistence and
+  // wakeUp policy must be verified on each firmware.
+  private static final String TENMIN_ENABLE="persist.epd.tenmin";
+  private static final String TENMIN_TEST="persist.epd.tenmin.test";
+  private static final long TEN_MINUTES_MS=600000L;
+  private static final long EXPERIMENT_TEST_MS=60000L;
+  private static final long PAINT_SETTLE_MS=2500L;
+  private static volatile boolean tenMinuteSession=false;
+  private static android.app.AlarmManager.OnAlarmListener scheduledWake;
+  private static int tenMinuteGeneration=0;
+
+  private static boolean isClockForeground(Context ctx){
+    ActivityManager am=(ActivityManager)ctx.getSystemService(Context.ACTIVITY_SERVICE);
+    if(am==null)return false;
+    List<ActivityManager.RunningTaskInfo> tasks=am.getRunningTasks(1);
+    ComponentName top=tasks==null||tasks.isEmpty()?null:tasks.get(0).topActivity;
+    return top!=null && CLOCK_PACKAGE.equals(top.getPackageName())
+        && CLOCK_ACTIVITY.equals(top.getClassName());
+  }
+
+  private static boolean canTenMinuteCycle(Context ctx){
+    if(!featureEnabled(ENABLE)||!featureEnabled(AUTO_ENABLE)
+        ||!featureEnabled(TENMIN_ENABLE)||circuitOpen)return false;
+    Intent b=ctx.registerReceiver(null,new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+    int level=b==null?-1:b.getIntExtra(BatteryManager.EXTRA_LEVEL,-1);
+    boolean external=b!=null&&b.getIntExtra(BatteryManager.EXTRA_PLUGGED,0)!=0;
+    return external || level>=LOW_BATTERY_STOCK_THRESHOLD;
+  }
+  private static void cancelTenMinuteCycle(Context ctx){
+    tenMinuteSession=false;
+    tenMinuteGeneration++;
+    if(scheduledWake!=null){
+      android.app.AlarmManager alarms=(android.app.AlarmManager)ctx.getSystemService(Context.ALARM_SERVICE);
+      if(alarms!=null)alarms.cancel(scheduledWake);
+      scheduledWake=null;
+    }
+  }
+  private static void startTenMinuteCycle(Context ctx){
+    if(!canTenMinuteCycle(ctx))return;
+    final int generation=++tenMinuteGeneration;
+    tenMinuteSession=true;
+    // Schedule before sleeping so a process crash or unexpected sleep won't
+    // leave the experiment holding a wake lock.
+    scheduleNextWake(ctx,generation);
+    worker.postDelayed(()->enterTenMinuteSleep(ctx,generation),PAINT_SETTLE_MS);
+  }
+  private static void scheduleNextWake(Context ctx,int generation){
+    android.app.AlarmManager alarm=(android.app.AlarmManager)ctx.getSystemService(Context.ALARM_SERVICE);
+    if(alarm==null){cancelTenMinuteCycle(ctx);return;}
+    long interval=featureEnabled(TENMIN_TEST)?EXPERIMENT_TEST_MS:TEN_MINUTES_MS;
+    long now=System.currentTimeMillis();
+    long trigger=(now/interval+1L)*interval;
+    if(trigger-now<8000L)trigger+=interval;
+    if(scheduledWake!=null)alarm.cancel(scheduledWake);
+    scheduledWake=()->{
+      if(!tenMinuteSession||generation!=tenMinuteGeneration)return;
+      if(!canTenMinuteCycle(ctx)||!isClockForeground(ctx)){
+        Log.i(TAG,"TENMIN_CANCEL_NOT_CLOCK_OR_LOW_BATTERY");
+        cancelTenMinuteCycle(ctx);return;
+      }
+      try{
+        PowerManager pm=(PowerManager)ctx.getSystemService(Context.POWER_SERVICE);
+        if(pm==null)throw new IllegalStateException("power manager unavailable");
+        if(!pm.isInteractive()){
+          Method wake=PowerManager.class.getDeclaredMethod("wakeUp",long.class);
+          wake.setAccessible(true);
+          wake.invoke(pm,SystemClock.uptimeMillis());
+          Log.i(TAG,"TENMIN_RTC_WAKE_DISPLAY_ON");
+          // Force the existing reader-clock Activity to paint fresh HH:mm.
+          // Waking the display alone does not guarantee onResume is called.
+          worker.postDelayed(()->{
+            if(tenMinuteSession&&generation==tenMinuteGeneration&&isClockForeground(ctx)){
+              Intent refresh=new Intent();
+              refresh.setComponent(new ComponentName(CLOCK_PACKAGE,CLOCK_ACTIVITY));
+              refresh.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK |
+                  Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_NO_ANIMATION);
+              refresh.putExtra("tenmin_rtc_refresh",true);
+              ctx.startActivity(refresh);
+              Log.i(TAG,"TENMIN_RTC_REFRESH_ACTIVITY_REQUESTED");
+            }
+          },450L);
+        }else Log.i(TAG,"TENMIN_RTC_ALREADY_INTERACTIVE");
+        // Activity.onResume() repaints HH:mm using the actual RTC time.
+        // Do not sleep if reader has replaced clock or user has left it.
+        worker.postDelayed(()->{
+          if(tenMinuteSession&&generation==tenMinuteGeneration&&isClockForeground(ctx)){
+            scheduleNextWake(ctx,generation);
+            enterTenMinuteSleep(ctx,generation);
+          }else cancelTenMinuteCycle(ctx);
+        },PAINT_SETTLE_MS+1000L);
+      }catch(Throwable e){
+        Log.e(TAG,"TENMIN_RTC_WAKE_FAILED; disable experiment",e);
+        cancelTenMinuteCycle(ctx);
+      }
+    };
+    alarm.setExact(android.app.AlarmManager.RTC_WAKEUP,trigger,
+        "EpdCalendar10MinuteRTC",scheduledWake,worker);
+    Log.i(TAG,"TENMIN_RTC_WAKE_SCHEDULED epoch="+trigger+" interval="+interval);
+  }
+  private static void enterTenMinuteSleep(Context ctx,int generation){
+    if(!tenMinuteSession||generation!=tenMinuteGeneration||!canTenMinuteCycle(ctx)
+        ||!isClockForeground(ctx)){cancelTenMinuteCycle(ctx);return;}
+    try{
+      PowerManager pm=(PowerManager)ctx.getSystemService(Context.POWER_SERVICE);
+      if(pm==null)throw new IllegalStateException("power manager missing");
+      // Keep the E-Ink framebuffer; the OEM's separate static SuspendLogo
+      // window must not replace the just-drawn calendar during this sleep.
+      suppressLogoUntilUptimeMs=SystemClock.uptimeMillis()+2500L;
+      Method sleep=PowerManager.class.getDeclaredMethod("goToSleep",long.class);
+      sleep.setAccessible(true);
+      sleep.invoke(pm,SystemClock.uptimeMillis());
+      Log.i(TAG,"TENMIN_REAL_SLEEP_REQUESTED");
+    }catch(Throwable e){
+      suppressLogoUntilUptimeMs=0;
+      Log.e(TAG,"TENMIN_SLEEP_FAILED; disable experimental cycle",e);
+      cancelTenMinuteCycle(ctx);
+    }
+  }
+
   private static boolean featureEnabled(String prop){
     try{return "1".equals((String)propGet.invoke(null,prop,"0"));}
     catch(Throwable e){return false;}
@@ -179,6 +304,7 @@ public final class PowerPolicyHook implements IXposedHookLoadPackage {
         Log.i(TAG,"AUTO_TIMEOUT_CLOCK_ALREADY_VISIBLE");
         return; // Timeout must never close the clock.
       }
+      cancelTenMinuteCycle(ctx);
       Log.i(TAG,"CLOCK_EXIT broadcasting finish; saved reading task="+previousTask);
       Intent exit=new Intent(ACTION_EXIT);
       exit.setPackage(CLOCK_PACKAGE);
