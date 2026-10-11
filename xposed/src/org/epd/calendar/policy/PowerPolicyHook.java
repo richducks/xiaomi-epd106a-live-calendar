@@ -23,6 +23,9 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage;
 public final class PowerPolicyHook implements IXposedHookLoadPackage {
   private static final String TAG="EinkLivePowerPolicy";
   private static final String ENABLE="persist.epd.liveclock";
+  private static final String AUTO_ENABLE="persist.epd.autoclock";
+  private static final int GO_TO_SLEEP_REASON_TIMEOUT=2;
+  private static final int LOW_BATTERY_STOCK_THRESHOLD=30;
   private static final String CLOCK_PACKAGE="org.epd.calendar";
   private static final String CLOCK_ACTIVITY="org.epd.calendar.MainActivity";
   private static final String ACTION_EXIT="org.epd.calendar.EXIT_CLOCK";
@@ -77,11 +80,67 @@ public final class PowerPolicyHook implements IXposedHookLoadPackage {
           }
         }
       });
+    // On this Android 8.1 firmware idle timeout goes straight through
+    // PowerManagerService, bypassing PhoneWindowManager.powerPress().
+    // Explicit opt-in and reason guard keep every other sleep path native.
+    try{
+      Class<?> powerService=XposedHelpers.findClass(
+          "com.android.server.power.PowerManagerService",lpparam.classLoader);
+      XposedHelpers.findAndHookMethod(powerService,"goToSleepNoUpdateLocked",
+          long.class,int.class,int.class,int.class,new XC_MethodHook(){
+        @Override protected void beforeHookedMethod(MethodHookParam p){
+          try{
+            if(circuitOpen||worker==null)return;
+            if(((Number)p.args[1]).intValue()!=GO_TO_SLEEP_REASON_TIMEOUT
+                ||((Number)p.args[2]).intValue()!=0
+                ||((Number)p.args[3]).intValue()!=android.os.Process.SYSTEM_UID)return;
+            if(!featureEnabled(ENABLE)||!featureEnabled(AUTO_ENABLE))return;
+            final Context ctx=(Context)XposedHelpers.getObjectField(p.thisObject,"mContext");
+            if(ctx==null)return;
+            Intent battery=ctx.registerReceiver(null,new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+            boolean plugged=battery!=null
+                &&battery.getIntExtra(BatteryManager.EXTRA_PLUGGED,0)!=0;
+            int level=battery==null?-1:battery.getIntExtra(BatteryManager.EXTRA_LEVEL,-1);
+            // A live, updating e-ink calendar requires an ON display. Below
+            // 30%, or when battery state is unknown, preserve stock standby.
+            if(!plugged&&(level<0||level<LOW_BATTERY_STOCK_THRESHOLD)){
+              Log.i(TAG,"AUTO_TIMEOUT_STOCK_SLEEP_BATTERY level="+level);
+              return;
+            }
+            if(!BUSY.compareAndSet(false,true))return;
+            // The intercepted private method returns boolean, NOT void.
+            // Returning false skips both sleep and OEM SuspendLogo.
+            p.setResult(Boolean.FALSE);
+            Log.i(TAG,"AUTO_TIMEOUT_INTERCEPT level="+level+" plugged="+plugged);
+            worker.post(()->{
+              try{handleTransition(ctx,true);}
+              catch(Throwable ex){
+                circuitOpen=true;
+                Log.e(TAG,"AUTO_TIMEOUT_FAILED; falling back to stock sleep",ex);
+                safeSleep(ctx);
+              }finally{BUSY.set(false);}
+            });
+          }catch(Throwable ex){
+            BUSY.set(false);
+            circuitOpen=true;
+            Log.e(TAG,"AUTO_TIMEOUT_GUARD_FAILED; letting stock sleep execute",ex);
+          }
+        }
+      });
+      XposedBridge.log("EPD_POLICY_AUTO_TIMEOUT_HOOK_READY opt-in "+AUTO_ENABLE);
+    }catch(Throwable e){
+      Log.e(TAG,"Idle timeout hook unavailable; stock sleep unchanged",e);
+    }
     XposedBridge.log("EPD_POLICY_POWERPRESS_HOOK_INSTALLED disabled_by_default");
     Log.i(TAG,"LegacyPolicyHook installed; disabled by default unless "+ENABLE+"=1");
   }
 
-  private static void handleShortPress(Context ctx){
+  private static boolean featureEnabled(String prop){
+    try{return "1".equals((String)propGet.invoke(null,prop,"0"));}
+    catch(Throwable e){return false;}
+  }
+  private static void handleShortPress(Context ctx){handleTransition(ctx,false);}
+  private static void handleTransition(Context ctx,boolean idleTimeout){
     ActivityManager am=(ActivityManager)ctx.getSystemService(Context.ACTIVITY_SERVICE);
     if(am==null){circuitOpen=true;safeSleep(ctx);return;}
     List<ActivityManager.RunningTaskInfo> tasks=am.getRunningTasks(1);
@@ -90,6 +149,10 @@ public final class PowerPolicyHook implements IXposedHookLoadPackage {
     boolean isClock=top!=null && CLOCK_PACKAGE.equals(top.getPackageName())
                     && CLOCK_ACTIVITY.equals(top.getClassName());
     if(isClock){
+      if(idleTimeout){
+        Log.i(TAG,"AUTO_TIMEOUT_CLOCK_ALREADY_VISIBLE");
+        return; // Timeout must never close the clock.
+      }
       Log.i(TAG,"CLOCK_EXIT broadcasting finish; saved reading task="+previousTask);
       Intent exit=new Intent(ACTION_EXIT);
       exit.setPackage(CLOCK_PACKAGE);
@@ -112,7 +175,7 @@ public final class PowerPolicyHook implements IXposedHookLoadPackage {
     Intent battery=ctx.registerReceiver(null,new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
     boolean plugged=battery!=null && battery.getIntExtra(BatteryManager.EXTRA_PLUGGED,0)!=0;
     int level=battery==null?-1:battery.getIntExtra(BatteryManager.EXTRA_LEVEL,-1);
-    if(!plugged && (level<30)){
+    if(!plugged && (level<LOW_BATTERY_STOCK_THRESHOLD)){
       Log.i(TAG,"LOW_BATTERY_STOCK_SLEEP level="+level);
       safeSleep(ctx);
       return;
@@ -123,7 +186,8 @@ public final class PowerPolicyHook implements IXposedHookLoadPackage {
     open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP |
                   Intent.FLAG_ACTIVITY_NO_ANIMATION);
     ctx.startActivity(open);
-    Log.i(TAG,"OPENED_NATIVE_LIVE_CALENDAR previousTask="+previousTask+" battery="+level+" plugged="+plugged);
+    Log.i(TAG,(idleTimeout?"AUTO_TIMEOUT_CALENDAR_LAUNCHED":"OPENED_NATIVE_LIVE_CALENDAR")
+        +" previousTask="+previousTask+" battery="+level+" plugged="+plugged);
   }
 
   private static void safeSleep(Context ctx){

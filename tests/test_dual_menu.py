@@ -29,7 +29,7 @@ class DualMenuTests(unittest.TestCase):
     def test_closing_or_pausing_restores_original_fullscreen_state(self):
         for fragment in (
             'originalSystemUiFlags=decor.getSystemUiVisibility();',
-            'void detach(){\n      restoreSystemBar();',
+            'void detach(){\n      restoreReaderKeepOn();\n      restoreSystemBar();',
             'else restoreSystemBar();',
             'window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);',
             'decor.setSystemUiVisibility(originalSystemUiFlags);',

@@ -9,5 +9,5 @@ device_check
 "$ADB" shell 'su -c "test -f /data/adb/post-fs-data.d/00-eink-livecalendar-recovery-guard.sh"' || { echo "ERROR: Recovery guard not installed; see docs/RECOVERY.md" >&2; exit 1; }
 "$ADB" shell 'su -c "test ! -f /cache/eink-calendar-rescue.disable"' || { echo "ERROR: recovery emergency disable is active" >&2; exit 1; }
 echo "WARNING: Ensure LSPosed module org.epd.calendar.policy is scoped to Android Framework/system; reboot after new installation."
-"$ADB" shell 'su -c "resetprop persist.epd.liveclock 1"'
-echo "Enabled (requires hook already loaded at boot). Run bash scripts/status.sh"
+"$ADB" shell 'su -c "resetprop persist.epd.liveclock 1; resetprop persist.epd.autoclock 1"'
+echo "Power-button + guarded automatic idle calendar enabled (requires LSPosed loaded at boot). Run bash scripts/status.sh"

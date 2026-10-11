@@ -6,7 +6,7 @@
 - Root：Magisk 30.7；Zygisk LSPosed v1.9.2 (7024)。
 - 第三方：NeatReader 8.1.4、App Manager 4.1.1（可选）。
 - 自研：墨水万年历 `org.epd.calendar`、电源键模块 `org.epd.calendar.policy`、NeatReader 双菜单模块 `org.epd.neat.touchzones`。
-- 两个开关：`persist.epd.liveclock=1`，`persist.epd.neatzones=1`。
+- 三个开关：`persist.epd.liveclock=1`（电源键日历），`persist.epd.autoclock=1`（自动超时日历），`persist.epd.neatzones=1`（NeatReader 双菜单／自动超时兼容）。自动超时在未充电且低于 30% 电量时回退原生静态待机。
 - LSPosed 作用域：`org.epd.calendar.policy` **仅 Android Framework**；`org.epd.neat.touchzones` **仅 NeatReader**。这不是可互换的作用域。
 
 以上是“配置目标”，而不是可跨设备直接刷写的出厂镜像。
@@ -33,13 +33,13 @@
    bash scripts/provision-clone.sh --check
    bash scripts/provision-clone.sh --install
    ```
-   `--install` 仅安装本项目三个 APK 和恢复护栏，并把两个功能关闭，避免安装期间 system_server 崩溃。
+   `--install` 仅安装本项目三个 APK 和恢复护栏，并把三个开关关闭，避免安装期间 system_server 崩溃。
 5. 在 LSPosed 里设定上述两个**精确作用域**，重启一次，然后执行：
    ```bash
    EPD_SCOPES_CONFIRMED=YES bash scripts/provision-clone.sh --activate
    bash scripts/provision-clone.sh --check
    ```
-6. 分别验证电源键动态日历、书籍阅读进度、中央双菜单、左右翻页、Wi-Fi、电量及正常重启。全部通过才可当成“使用配置复制成功”。
+6. 分别验证电源键动态日历、**阅读页停止操作超过系统自动息屏时间后进入动态日历**、书籍阅读位置、中央双菜单、左右翻页、Wi-Fi、电量及正常重启。动态日历需要屏幕保持通电更新，耗电高于静态锁屏，详见 [自动息屏机制](AUTO_IDLE_LIVE_CALENDAR.md)。全部通过才可当成“使用配置复制成功”。
 
 完整恢复路径**不保证所有用户数据一模一样**，尤其是登录状态与个人书籍。刷机/Root 不可逆风险，应先有离线回退和救援途径。
 

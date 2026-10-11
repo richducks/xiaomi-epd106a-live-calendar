@@ -1,8 +1,10 @@
 # 墨水历 · EPD106A 动态万年历锁屏
 
-[English](README.en.md) · [当前系统备份与复制到第二台](docs/SAME_DEVICE_RESTORE.md) · [安装与卸载](docs/INSTALL.md) · [工程/产品验收](docs/ACCEPTANCE.md) · [恢复机制](docs/RECOVERY.md) · [已遇到的问题](docs/TROUBLESHOOTING.md) · [Root 与版权](docs/ROOT_AND_LICENSES.md)
+[English](README.en.md) · [自动息屏进入实时日历](docs/AUTO_IDLE_LIVE_CALENDAR.md) · [当前系统备份与复制到第二台](docs/SAME_DEVICE_RESTORE.md) · [安装与卸载](docs/INSTALL.md) · [工程/产品验收](docs/ACCEPTANCE.md) · [恢复机制](docs/RECOVERY.md) · [已遇到的问题](docs/TROUBLESHOOTING.md) · [Root 与版权](docs/ROOT_AND_LICENSES.md)
 
 为小米多看阅读器一代、墨案 EPD106A / Android 8.1（virgo-perf1）开发的**开源、原生、真实分钟更新的动态万年历**。本项目不是静态锁屏 PNG：在正常电量下，短按实体电源键直接切换至原生 Android 日历，显示北京时间 `HH:mm`、公历、农历、月历和节气估算、今日手绘墨圈；再次短按返回原阅读任务。
+
+**自动息屏修复（EPD106A）**：系统空闲超时现在也会显示同一个实时日历，而不再使用墨案静态壁纸。NeatReader 阅读页原有的 `KEEP_SCREEN_ON` 会在启用自动日历时暂时移除，以允许系统超时生效。由于屏幕必须保持通电才能分钟刷新，此功能**比真正的静态休眠耗电**，低电量时自动恢复原厂待机。技术及关闭方式详见 [自动息屏说明](docs/AUTO_IDLE_LIVE_CALENDAR.md)。
 
 设备原生界面（实机截屏）：
 

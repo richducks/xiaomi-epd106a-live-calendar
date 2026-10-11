@@ -26,7 +26,7 @@ echo "Installing policy APK from $HOOK"
 "$ADB" shell 'su -c "mkdir -p /data/adb/post-fs-data.d; if [ ! -e /data/adb/post-fs-data.d/00-eink-livecalendar-recovery-guard.sh ]; then cp /data/local/tmp/00-eink-livecalendar-recovery-guard.sh /data/adb/post-fs-data.d/00-eink-livecalendar-recovery-guard.sh; chmod 0700 /data/adb/post-fs-data.d/00-eink-livecalendar-recovery-guard.sh; fi"'
 "$ADB" shell 'su -c "test -f /data/adb/post-fs-data.d/00-eink-livecalendar-recovery-guard.sh"' || { echo "ERROR: Recovery guard missing" >&2; exit 1; }
 # Safety: never start newly installed policy while system is still configuring.
-"$ADB" shell 'su -c "resetprop persist.epd.liveclock 0"'
+"$ADB" shell 'su -c "resetprop persist.epd.autoclock 0; resetprop persist.epd.liveclock 0"'
 "$ADB" install -r "$APP"
 "$ADB" install -r "$HOOK"
 "$ADB" shell pm path org.epd.calendar

@@ -47,6 +47,14 @@ public final class NeatTouchZones implements IXposedHookLoadPackage {
       return false; // opt-in only: failure leaves NeatReader fully native
     }
   }
+  private static boolean autoIdleEnabled(){
+    try{
+      Class<?> p=Class.forName("android.os.SystemProperties");
+      String value=(String)p.getMethod("get",String.class,String.class)
+          .invoke(null,"persist.epd.autoclock","0");
+      return "1".equals(value);
+    }catch(Throwable t){return false;}
+  }
   @Override public void handleLoadPackage(XC_LoadPackage.LoadPackageParam p) throws Throwable {
     if(!PACKAGE.equals(p.packageName)||!PACKAGE.equals(p.processName))return;
     XposedHelpers.findAndHookMethod(Activity.class,"onResume",new XC_MethodHook(){
@@ -98,6 +106,7 @@ public final class NeatTouchZones implements IXposedHookLoadPackage {
       Zone zone=new Zone(a,(FrameLayout)decor,top,bottom);
       zone.attach();
       ZONES.put(a,zone);
+      zone.allowIdleTimeout();
       XposedBridge.log("NEAT_DUAL_MENU_READY "+decor.getWidth()+"x"+decor.getHeight());
     }catch(Throwable t){
       Log.e(TAG,"Failed to attach optional reader zone; native paging preserved",t);
@@ -111,6 +120,7 @@ public final class NeatTouchZones implements IXposedHookLoadPackage {
     boolean systemBarShown;
     boolean originallyFullscreen;
     int originalSystemUiFlags;
+    boolean originalReaderKeepOn;
     MotionEvent originalDown;
     Runnable holdForward;
     boolean forwarding;
@@ -131,7 +141,25 @@ public final class NeatTouchZones implements IXposedHookLoadPackage {
       decor.addView(center,lp);
       center.setOnTouchListener(this);
     }
+    void allowIdleTimeout(){
+      if(!autoIdleEnabled())return;
+      android.view.Window window=activity.getWindow();
+      originalReaderKeepOn=(window.getAttributes().flags &
+          WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)!=0;
+      if(originalReaderKeepOn){
+        window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        XposedBridge.log("NEAT_ALLOW_IDLE_TIMEOUT_KEEP_ON_CLEARED");
+      }
+    }
+    void restoreReaderKeepOn(){
+      if(originalReaderKeepOn){
+        activity.getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        originalReaderKeepOn=false;
+        XposedBridge.log("NEAT_RESTORE_READER_KEEP_ON");
+      }
+    }
     void detach(){
+      restoreReaderKeepOn();
       restoreSystemBar();
       stopHold();
       if(center!=null && center.getParent()==decor) decor.removeView(center);
