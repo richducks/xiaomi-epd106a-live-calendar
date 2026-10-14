@@ -37,7 +37,7 @@ class AutoTimeoutTests(unittest.TestCase):
             'LOW_BATTERY_STOCK_THRESHOLD=30', 'AUTO_TIMEOUT_STOCK_SLEEP_BATTERY',
             'level<0||level<LOW_BATTERY_STOCK_THRESHOLD', 'catch(Throwable ex)',
             'circuitOpen=true;', 'safeSleep(ctx);',
-            'return; // Timeout must never close the clock.',
+            'AUTO_TIMEOUT_CLOCK_ALREADY_VISIBLE', 'if(idleTimeout){',
         ):
             self.assertIn(fragment,SOURCE)
 
@@ -74,8 +74,10 @@ class AutoTimeoutTests(unittest.TestCase):
             self.assertIn(fragment,SOURCE)
 
     def test_test_interval_is_minute_only_and_not_default(self):
-        self.assertIn('EXPERIMENT_TEST_MS=60000L',SOURCE)
-        self.assertIn('featureEnabled(TENMIN_TEST)?EXPERIMENT_TEST_MS:TEN_MINUTES_MS',SOURCE)
+        self.assertIn('ONE_MINUTE_MS=60000L',SOURCE)
+        self.assertIn('REFRESH_MINUTES="persist.epd.clock.interval"',SOURCE)
+        self.assertIn('if("1".equals(minutes))return ONE_MINUTE_MS;',SOURCE)
+        self.assertIn('return TEN_MINUTES_MS;',SOURCE)
         self.assertIn('RTC_WAKEUP',SOURCE)
         self.assertIn('TENMIN_RTC_WAKE_SCHEDULED',SOURCE)
         self.assertIn('TENMIN_RTC_WAKE_FAILED',SOURCE)

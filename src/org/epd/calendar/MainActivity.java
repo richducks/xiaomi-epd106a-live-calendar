@@ -65,6 +65,13 @@ public class MainActivity extends Activity {
       }
       return;
     }
+    // The Root RTC policy is responsible for brief wake/paint/sleep.
+    // Never hold KEEP_SCREEN_ON throughout a one-minute alarm session.
+    if(isTenMinuteExperiment()){
+      getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+      android.util.Log.d("EinkCalendar","RTC_CLOCK_NO_KEEP_SCREEN_ON");
+      return;
+    }
     getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     android.util.Log.d("EinkCalendar","CLOCK_STAYS_ON external="+external+" battery="+level);
   }
@@ -133,8 +140,10 @@ public class MainActivity extends Activity {
     super.onNewIntent(intent);
     setIntent(intent);
     if(intent!=null&&intent.getBooleanExtra("tenmin_rtc_refresh",false)){
+      // The RTC display wake already resumes the Activity. Make a second
+      // refresh idempotent: text edits automatically invalidate ONLY the
+      // modified view; never force a second e-ink panel update.
       update();
-      clock.invalidate();
       android.util.Log.i("EinkCalendar","TENMIN_RTC_REFRESH_APPLIED text="+clock.getText());
     }
   }
@@ -203,13 +212,24 @@ public class MainActivity extends Activity {
     long ms=utc.getTimeInMillis()+(long)(31556925974.7*(y-1900))+(long)SOLMIN[term]*60000L;
     GregorianCalendar cn=new GregorianCalendar(TZ);cn.setTimeInMillis(ms);return cn.get(Calendar.DAY_OF_MONTH);
   }
+  // Keep TextView.setText (and its e-ink invalidation) to actual changes:
+  // the regular minute update should dirty only the clock's DU-mode layer.
+  void setIfChanged(TextView view,String value){
+    if(!android.text.TextUtils.equals(view.getText(),value))view.setText(value);
+  }
   void update(){
     Calendar n=Calendar.getInstance(TZ,Locale.CHINA);
     int y=n.get(Calendar.YEAR),m=n.get(Calendar.MONTH),d=n.get(Calendar.DAY_OF_MONTH);
     SimpleDateFormat fmt=new SimpleDateFormat("HH:mm",Locale.CHINA);fmt.setTimeZone(TZ);
     String hhmm=fmt.format(n.getTime());
-    clock.setText(hhmm);
-    solar.setText("节气（估） "+SOL[m*2]+solarDay(y,m*2)+"日 · "+SOL[m*2+1]+solarDay(y,m*2+1)+"日");
+    if(!android.text.TextUtils.equals(clock.getText(),hhmm)){
+      clock.setText(hhmm);
+      android.util.Log.i("EinkCalendar","DU_MINUTE_CLOCK_TEXT_UPDATED text="+hhmm);
+    }
+    int key=y*10000+(m+1)*100+d;
+    if(key!=dateKey){
+      setIfChanged(solar,"节气（估） "+SOL[m*2]+solarDay(y,m*2)+"日 · "+SOL[m*2+1]+solarDay(y,m*2+1)+"日");
+    }
     // Sticky ACTION_BATTERY_CHANGED is the Android source of truth.
     // Avoid hard-coded percentages and avoid polling a privileged battery service.
     Intent status=registerReceiver(null,new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
@@ -218,12 +238,11 @@ public class MainActivity extends Activity {
     if(batteryView!=null){
       if(level>=0 && scale>0){
         int percent=Math.max(0,Math.min(100,(level*100+scale/2)/scale));
-        batteryView.setText("电量 "+percent+"%");
+        setIfChanged(batteryView,"电量 "+percent+"%");
       }else{
-        batteryView.setText("电量 --%");
+        setIfChanged(batteryView,"电量 --%");
       }
     }
-    int key=y*10000+(m+1)*100+d;
     if(key!=dateKey){drawMonth(y,m,d);dateKey=key;}
   }
   void drawMonth(int year,int month,int today){

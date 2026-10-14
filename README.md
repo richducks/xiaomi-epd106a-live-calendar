@@ -1,8 +1,10 @@
 # 墨水历 · EPD106A 动态万年历锁屏
 
-[English](README.en.md) · [10 分钟低功耗 RTC 实验](docs/TEN_MINUTE_RTC_EXPERIMENT.md) · [自动息屏进入实时日历](docs/AUTO_IDLE_LIVE_CALENDAR.md) · [当前系统备份与复制到第二台](docs/SAME_DEVICE_RESTORE.md) · [安装与卸载](docs/INSTALL.md) · [工程/产品验收](docs/ACCEPTANCE.md) · [恢复机制](docs/RECOVERY.md) · [已遇到的问题](docs/TROUBLESHOOTING.md) · [Root 与版权](docs/ROOT_AND_LICENSES.md)
+[English](README.en.md) · [2026-10-14 电源键与 1/10 分钟 RTC 修复](docs/POWERKEY_RTC_REFRESH_20261014.md) · [10 分钟低功耗 RTC 实验](docs/TEN_MINUTE_RTC_EXPERIMENT.md) · [自动息屏进入实时日历](docs/AUTO_IDLE_LIVE_CALENDAR.md) · [当前系统备份与复制到第二台](docs/SAME_DEVICE_RESTORE.md) · [安装与卸载](docs/INSTALL.md) · [工程/产品验收](docs/ACCEPTANCE.md) · [恢复机制](docs/RECOVERY.md) · [已遇到的问题](docs/TROUBLESHOOTING.md) · [Root 与版权](docs/ROOT_AND_LICENSES.md)
 
 为小米多看阅读器一代、墨案 EPD106A / Android 8.1（virgo-perf1）开发的**开源、原生、真实分钟更新的动态万年历**。本项目不是静态锁屏 PNG：在正常电量下，短按实体电源键直接切换至原生 Android 日历，显示北京时间 `HH:mm`、公历、农历、月历和节气估算、今日手绘墨圈；再次短按返回原阅读任务。
+
+**2026-10-14 刷新优化（源码版 0.3.1）**：将“实体电源键进入”和“自动息屏进入”统一接入 RTC 定时唤醒→更新→再次休眠流程。启用 `persist.epd.tenmin=1` 后，默认 10 分钟刷新；设置 `persist.epd.clock.interval=1` 可选择每分钟刷新。两种模式都不持续保持 `KEEP_SCREEN_ON`，分钟更新只改动变化的时钟文本；固件 DU 局刷是否完全无闪烁、断电续航改善幅度仍需实测。详见 [功能与验收](docs/POWERKEY_RTC_REFRESH_20261014.md)。**注意：旧 GitHub Release APK 不自动包含这次源码更新，须构建新版双 APK 并部署。**
 
 **自动息屏修复（EPD106A）**：系统空闲超时现在也会显示同一个实时日历，而不再使用墨案静态壁纸。NeatReader 阅读页原有的 `KEEP_SCREEN_ON` 会在启用自动日历时暂时移除，以允许系统超时生效；同时跳过墨案厂商在此次自动超时切换中多余的 `showSuspendLogo()` 静态壁纸窗口，避免旧截图短暂盖到日历上。由于屏幕必须保持通电才能分钟刷新，此功能**比真正的静态休眠耗电**，低电量时自动恢复原厂待机。技术及关闭方式详见 [自动息屏说明](docs/AUTO_IDLE_LIVE_CALENDAR.md)。
 
@@ -21,7 +23,7 @@
 1. Android 8.1 EPD106A 安装最新版 Magisk 并启用 Zygisk；通过其官方渠道安装兼容的 LSPosed（第三方软件，**本仓库不分发**）。
 2. 下载本仓库 Releases 中的 `eink-calendar.apk` 和 `eink-livecalendar-policy.apk`，依次安装。
 3. 在 LSPosed 管理器中启用 **墨水万年历 · 电源键模块**（org.epd.calendar.policy），**仅**将范围设为 Android Framework（`system`），重启。
-4. 先测试能正常启动，再从 Ubuntu 执行 `scripts/enable.sh` 打开功能；从书中短按电源键、等待 1 分钟确认刷新、再短按确认返回书籍原位置。
+4. 先测试能正常启动，再从 Ubuntu 执行 `scripts/enable.sh` 打开功能；需要真实睡眠的 RTC 刷新时另执行 `scripts/enable-tenmin.sh`，使用 `./set-refresh-interval.sh 10` 或 `1` 选择刷新间隔。按模式跨越对应时间边界检查刷新和休眠，最后测试退出返回阅读任务。
 5. 随时可运行 `scripts/disable.sh` 关闭挂接逻辑；无法启动时参见 [Recovery 救援](docs/RECOVERY.md)。
 
 ```bash
@@ -50,7 +52,7 @@ bash scripts/disable.sh
     → 再次短按通过定向广播退出，恢复上一任务
 ```
 
-只在普通单击、可交互且用户显式开启时切换，长按及多击保持原厂逻辑。原生日历保持显示层 ON 以实现真实每分钟重绘，**不是深度休眠时仍能刷新时间的 AOD**；耗电高于静态睡眠。未接电且电量低于 30% 时不进入动态日历，日历内低于或等于 25% 时自动退出。这个阈值设定是设备保护，不能代替实际续航测量。
+只在普通单击、可交互且用户显式开启时切换，长按及多击保持原厂逻辑。旧常亮模式在显示层 ON 时按分钟重绘；**RTC 模式不是持续运行的 AOD**，而是周期性唤醒屏幕并在绘制后重新休眠，实际频次由 `persist.epd.clock.interval` 控制。两种机制耗电不同，且 RTC 分钟模式明显比 RTC 十分钟模式唤醒更频繁。未接电且电量低于 30% 时不进入动态日历，日历内低于或等于 25% 时自动退出。这个阈值设定是设备保护，不能代替实际续航测量。
 
 网页工作台 `web/index.html` 只用于排版和静态 PNG/JSON 导出，**不会更改安装在阅读器上的原生 UI**。运行：`cd web && python3 -m http.server 8786 --bind 127.0.0.1`，访问 http://127.0.0.1:8786 。
 
