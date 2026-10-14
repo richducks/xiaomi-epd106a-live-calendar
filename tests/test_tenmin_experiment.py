@@ -15,8 +15,9 @@ class TenMinuteRtcTests(unittest.TestCase):
                       'Intent.FLAG_ACTIVITY_SINGLE_TOP',
                       'setIntent(intent)',
                       'TENMIN_RTC_REFRESH_APPLIED text=',
-                      'clock.invalidate();'):
+                      'update();'):
             self.assertIn(chunk,POLICY+CLOCK)
+        self.assertNotIn('clock.invalidate();',CLOCK)
 
     def test_disable_regular_minute_updates_only_in_opt_in(self):
         self.assertIn('TENMIN_FOREGROUND_MINUTE_TICK_DISABLED',CLOCK)
@@ -26,7 +27,8 @@ class TenMinuteRtcTests(unittest.TestCase):
 
     def test_default_10min_not_test_1min(self):
         self.assertIn('TEN_MINUTES_MS=600000L',POLICY)
-        self.assertIn('featureEnabled(TENMIN_TEST)?EXPERIMENT_TEST_MS:TEN_MINUTES_MS',POLICY)
+        self.assertIn('long interval=refreshIntervalMs();',POLICY)
+        self.assertIn('return TEN_MINUTES_MS;',POLICY)
         self.assertIn('android.app.AlarmManager.RTC_WAKEUP',POLICY)
         self.assertIn('TENMIN_RTC_WAKE_SCHEDULED',POLICY)
 

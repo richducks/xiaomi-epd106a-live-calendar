@@ -120,8 +120,9 @@ public final class PowerPolicyHook implements IXposedHookLoadPackage {
             Log.i(TAG,"AUTO_TIMEOUT_INTERCEPT level="+level+" plugged="+plugged);
             worker.post(()->{
               try{
+                // Both idle timeout and power-key transitions enter the same
+                // calendar lifecycle in handleTransition(), including RTC sleep.
                 handleTransition(ctx,true);
-                if(featureEnabled(TENMIN_ENABLE))startTenMinuteCycle(ctx);
               }
               catch(Throwable ex){
                 suppressLogoUntilUptimeMs=0;
@@ -170,10 +171,16 @@ public final class PowerPolicyHook implements IXposedHookLoadPackage {
   // This is intentionally opt-in because OEM e-ink framebuffer persistence and
   // wakeUp policy must be verified on each firmware.
   private static final String TENMIN_ENABLE="persist.epd.tenmin";
+  // Production RTC cadence: 1 or 10 minutes. Default remains the proven
+  // 10-minute power-saving path; only an explicit "1" opts into each minute.
+  private static final String REFRESH_MINUTES="persist.epd.clock.interval";
   private static final String TENMIN_TEST="persist.epd.tenmin.test";
   private static final long TEN_MINUTES_MS=600000L;
-  private static final long EXPERIMENT_TEST_MS=60000L;
+  private static final long ONE_MINUTE_MS=60000L;
   private static final long PAINT_SETTLE_MS=2500L;
+  // E-Ink DU partial text paint: allow time for the resumed Activity and
+  // 450ms singleTop refresh without keeping Android awake for 3.5s/min.
+  private static final long MINUTE_RTC_SETTLE_MS=2200L;
   private static volatile boolean tenMinuteSession=false;
   private static android.app.AlarmManager.OnAlarmListener scheduledWake;
   private static int tenMinuteGeneration=0;
@@ -205,7 +212,7 @@ public final class PowerPolicyHook implements IXposedHookLoadPackage {
     }
   }
   private static void startTenMinuteCycle(Context ctx){
-    if(!canTenMinuteCycle(ctx))return;
+    if(tenMinuteSession||!canTenMinuteCycle(ctx))return;
     final int generation=++tenMinuteGeneration;
     tenMinuteSession=true;
     // Schedule before sleeping so a process crash or unexpected sleep won't
@@ -213,10 +220,19 @@ public final class PowerPolicyHook implements IXposedHookLoadPackage {
     scheduleNextWake(ctx,generation);
     worker.postDelayed(()->enterTenMinuteSleep(ctx,generation),PAINT_SETTLE_MS);
   }
+  private static long refreshIntervalMs(){
+    try{
+      String minutes=(String)propGet.invoke(null,REFRESH_MINUTES,"10");
+      if("1".equals(minutes))return ONE_MINUTE_MS;
+      // Legacy developer-only setting is still supported for diagnostics.
+      if(featureEnabled(TENMIN_TEST))return ONE_MINUTE_MS;
+    }catch(Throwable e){Log.w(TAG,"RTC interval property unavailable; use 10m",e);}
+    return TEN_MINUTES_MS;
+  }
   private static void scheduleNextWake(Context ctx,int generation){
     android.app.AlarmManager alarm=(android.app.AlarmManager)ctx.getSystemService(Context.ALARM_SERVICE);
     if(alarm==null){cancelTenMinuteCycle(ctx);return;}
-    long interval=featureEnabled(TENMIN_TEST)?EXPERIMENT_TEST_MS:TEN_MINUTES_MS;
+    long interval=refreshIntervalMs();
     long now=System.currentTimeMillis();
     long trigger=(now/interval+1L)*interval;
     if(trigger-now<8000L)trigger+=interval;
@@ -249,21 +265,24 @@ public final class PowerPolicyHook implements IXposedHookLoadPackage {
             }
           },450L);
         }else Log.i(TAG,"TENMIN_RTC_ALREADY_INTERACTIVE");
-        // Activity.onResume() repaints HH:mm using the actual RTC time.
-        // Do not sleep if reader has replaced clock or user has left it.
+        // Shorter, bounded active window in one-minute mode; keep the
+        // original stable settling interval in ten-minute mode.
+        // Never sleep when reader has replaced the clock.
+        final long wakeSettle=interval==ONE_MINUTE_MS
+            ?MINUTE_RTC_SETTLE_MS:PAINT_SETTLE_MS+1000L;
         worker.postDelayed(()->{
           if(tenMinuteSession&&generation==tenMinuteGeneration&&isClockForeground(ctx)){
             scheduleNextWake(ctx,generation);
             enterTenMinuteSleep(ctx,generation);
           }else cancelTenMinuteCycle(ctx);
-        },PAINT_SETTLE_MS+1000L);
+        },wakeSettle);
       }catch(Throwable e){
         Log.e(TAG,"TENMIN_RTC_WAKE_FAILED; disable experiment",e);
         cancelTenMinuteCycle(ctx);
       }
     };
     alarm.setExact(android.app.AlarmManager.RTC_WAKEUP,trigger,
-        "EpdCalendar10MinuteRTC",scheduledWake,worker);
+        "EpdCalendarRTC",scheduledWake,worker);
     Log.i(TAG,"TENMIN_RTC_WAKE_SCHEDULED epoch="+trigger+" interval="+interval);
   }
   private static void enterTenMinuteSleep(Context ctx,int generation){
@@ -302,7 +321,10 @@ public final class PowerPolicyHook implements IXposedHookLoadPackage {
     if(isClock){
       if(idleTimeout){
         Log.i(TAG,"AUTO_TIMEOUT_CLOCK_ALREADY_VISIBLE");
-        return; // Timeout must never close the clock.
+        // A timeout with the clock already foreground must not close it,
+        // but should arm the same sleep cycle if one is not running yet.
+        if(featureEnabled(TENMIN_ENABLE))startTenMinuteCycle(ctx);
+        return;
       }
       cancelTenMinuteCycle(ctx);
       Log.i(TAG,"CLOCK_EXIT broadcasting finish; saved reading task="+previousTask);
@@ -340,6 +362,13 @@ public final class PowerPolicyHook implements IXposedHookLoadPackage {
     ctx.startActivity(open);
     Log.i(TAG,(idleTimeout?"AUTO_TIMEOUT_CALENDAR_LAUNCHED":"OPENED_NATIVE_LIVE_CALENDAR")
         +" previousTask="+previousTask+" battery="+level+" plugged="+plugged);
+    // Always arm RTC deep-sleep, regardless of how the calendar was opened.
+    // Previously only the auto-timeout caller did so: the power-key path
+    // could leave the screen awake and drain the battery.
+    if(featureEnabled(TENMIN_ENABLE)){
+      Log.i(TAG,"TENMIN_ENTRY route="+(idleTimeout?"AUTO_TIMEOUT":"POWER_KEY"));
+      startTenMinuteCycle(ctx);
+    }
   }
 
   private static void safeSleep(Context ctx){

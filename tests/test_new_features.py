@@ -7,7 +7,7 @@ SOURCE=BASE/"neat-zones/src/org/epd/neat/touchzones/NeatTouchZones.java"
 class BatteryAndNeatZonesTest(unittest.TestCase):
     def test_battery_comes_from_android_sticky_broadcast(self):
         s=(BASE/"src/org/epd/calendar/MainActivity.java").read_text()
-        self.assertIn('batteryView.setText("电量 "+percent+"%")',s)
+        self.assertIn('setIfChanged(batteryView,"电量 "+percent+"%")',s)
         self.assertIn('Intent.ACTION_BATTERY_CHANGED',s)
         self.assertIn("BatteryManager.EXTRA_LEVEL",s)
         self.assertIn("BatteryManager.EXTRA_SCALE",s)
