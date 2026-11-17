@@ -20,7 +20,7 @@ class TestSourceExport(unittest.TestCase):
             (project / 'app.py').write_text('print("hello")', encoding='utf-8')
             output = base / 'source_backup.zip'
             proc = subprocess.run([sys.executable, str(SCRIPT), '--project-dir', str(project),
-                                   '--output', str(output)], capture_output=True, text=True, timeout=35)
+                                   '--output', str(output)], capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=35)
             self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
             with zipfile.ZipFile(output) as z:
                 self.assertIn('project/app.py', z.namelist())
@@ -48,7 +48,7 @@ class TestSourceExport(unittest.TestCase):
             source.mkdir()
             output = source / 'export.zip'
             proc = subprocess.run([sys.executable, str(SCRIPT), '--project-dir', str(source),
-                                   '--output', str(output)], capture_output=True, text=True, timeout=35)
+                                   '--output', str(output)], capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=35)
             self.assertNotEqual(proc.returncode, 0)
             self.assertFalse(output.exists())
 
