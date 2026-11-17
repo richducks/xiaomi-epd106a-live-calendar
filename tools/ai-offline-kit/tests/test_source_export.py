@@ -1,3 +1,4 @@
+import os
 import subprocess
 import sys
 import tempfile
@@ -24,6 +25,22 @@ class TestSourceExport(unittest.TestCase):
             with zipfile.ZipFile(output) as z:
                 self.assertIn('project/app.py', z.namelist())
                 self.assertFalse(any(x.startswith('project/.git/') for x in z.namelist()))
+
+    def test_non_utf8_windows_pipe_does_not_crash(self):
+        # Reproduces GitHub Windows Actions' inherited cp1252 stdio.
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            source = base / 'source'
+            source.mkdir()
+            (source / 'script.py').write_text('print(1)', encoding='utf-8')
+            archive = base / 'snapshot.zip'
+            env = dict(os.environ, PYTHONIOENCODING='cp1252')
+            proc = subprocess.run([sys.executable, str(SCRIPT), '--project-dir', str(source),
+                                   '--output', str(archive)], capture_output=True,
+                                  env=env, timeout=35)
+            self.assertEqual(proc.returncode, 0, proc.stderr.decode('utf-8', 'replace'))
+            self.assertIn('已打包', proc.stdout.decode('utf-8'))
+            self.assertTrue(archive.is_file())
 
     def test_refuse_export_into_source(self):
         with tempfile.TemporaryDirectory() as tmp:

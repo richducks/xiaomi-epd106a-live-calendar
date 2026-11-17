@@ -68,7 +68,7 @@ def execute(args):
             cmd = [sys.executable, str(ROOT / 'host_source_backup.py'), '--project-dir', args.project_dir]
             if args.output:
                 cmd.extend(['--output', args.output])
-            proc = subprocess.run(cmd, capture_output=True, text=True, errors='replace', timeout=1800, cwd=str(ROOT))
+            proc = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=1800, cwd=str(ROOT))
             result['reader'] = {'return_code': proc.returncode, 'stdout': proc.stdout, 'stderr': proc.stderr}
     elif action == 'restore':
         if not args.approve_install:
@@ -105,4 +105,9 @@ def main(argv=None):
     return 0 if payload.get('ok') else payload.get('reader', {}).get('return_code', 1)
 
 if __name__ == '__main__':
+    # Windows pipes and CI runners may default to cp1252. Preserve Chinese JSON/logs.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, 'reconfigure'):
+            stream.reconfigure(encoding='utf-8', errors='replace')
+
     sys.exit(main())
