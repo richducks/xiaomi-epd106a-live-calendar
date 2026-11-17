@@ -1,0 +1,30 @@
+name: AI Offline Kit Tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "tools/ai-offline-kit/**"
+      - "docs/AI_OFFLINE_KIT.md"
+      - ".github/workflows/ai-offline-kit-tests.yml"
+  pull_request:
+    paths:
+      - "tools/ai-offline-kit/**"
+      - "docs/AI_OFFLINE_KIT.md"
+      - ".github/workflows/ai-offline-kit-tests.yml"
+
+jobs:
+  cross-platform:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run safe simulated tests (no USB access)
+        working-directory: tools/ai-offline-kit
+        run: python -m unittest discover -s tests -v

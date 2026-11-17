@@ -1,0 +1,4 @@
+传统兼容位置：这里可放当前主机的 platform-tools/ 目录。
+推荐 v0.3：在联网电脑运行 prepare_offline.py --all --accept-google-sdk-license，
+它会自动把四个平台的 ADB/fastboot 和便携 Python 放进 vendor/<target>/。
+请先阅读官方许可，勿从不明网站下载安装包。

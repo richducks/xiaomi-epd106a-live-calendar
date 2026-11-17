@@ -96,3 +96,7 @@ adb shell am force-stop com.gzhi.neatreader.r2.main
 ```
 
 **限制：** 可选的墨水屏 DU 快刷尚未纳入这个触控修复，它无法保证解决 NeatReader 原本的加载转圈和整屏刷新。未在实际 20 次以上连续翻页或大批量书籍上验证；不要将菜单成功等同于全局流畅度达标。
+
+## AI 跨平台离线工具仓（Windows / macOS / Linux）
+
+新增 [AI 离线工具仓 v0.3 使用与安全说明](docs/AI_OFFLINE_KIT.md) 和 [`tools/ai-offline-kit/`](tools/ai-offline-kit/)。它提供 Python 通用备份/校验、受控 APK 还原、ADB/Python 官方组件的**用户本地**预下载准备器，以及供终端 AI 调用的 JSON 命令入口。**GitHub 只包含源码，没有预下载的第三方二进制、完整系统镜像或用户私人备份。** 当前 EPD106A 的固件专用 Root/LSPosed 部署仍应使用 [`scripts/provision-clone.sh`](scripts/provision-clone.sh) 并按固件指纹、LSPosed 作用域及 Recovery 护栏逐项验收；通用 APK 恢复不能代替它。
