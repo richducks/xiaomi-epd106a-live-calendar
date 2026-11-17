@@ -1,0 +1,8 @@
+{
+  "tag": "ai-kit-v0.3.1-beta.1",
+  "name": "AI 跨平台阅读器工具箱 v0.3.1-beta.1（免 Python 安装包）",
+  "channel": "beta",
+  "published_assets": ["windows-x64", "macos-x64", "macos-arm64", "linux-x64"],
+  "android_apks": "既有 v0.3.0-ten-minute-alpha.2 的公开自研实验 APK，非当前 GOLDEN 系统镜像",
+  "license_note": "不上传 Google ADB/Fastboot、第三方 Root/NeatReader、固件和私人备份"
+}

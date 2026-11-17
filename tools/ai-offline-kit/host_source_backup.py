@@ -32,11 +32,11 @@ def collect_units(out: Path):
             (out / name).write_text(str(exc), encoding='utf-8')
 
 
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser(description='离线备份阅读器开发工程（显式指定源代码目录）')
     parser.add_argument('--project-dir', required=True)
     parser.add_argument('--output', help='默认输出到当前目录下时间戳 ZIP')
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     root = Path(args.project_dir).expanduser().resolve()
     if not root.is_dir():
         parser.error('项目目录不存在')

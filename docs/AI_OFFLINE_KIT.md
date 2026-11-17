@@ -1,5 +1,7 @@
 # AI 跨平台离线备份与复用工具仓（v0.3）
 
+**不懂命令行的用户：先阅读 [电脑端直接下载与安装](DOWNLOAD_AND_INSTALL.md)。** GitHub Releases 另提供免安装 Python 的 v0.3.1-b​eta 桌面 GUI / AI CLI；本页保留源码和自行制作全平台私人离线工具仓的说明。
+
 本仓库同时维护两条**不能相互替代**的路径：
 
 1. **当前 EPD106A 固件专用的日历部署**：[`scripts/provision-clone.sh`](../scripts/provision-clone.sh) + [`docs/SAME_DEVICE_RESTORE.md`](SAME_DEVICE_RESTORE.md)，强制核验设备固件指纹、Root、LSPosed 作用域并设置救援护栏。已有真实部署经验，但不等于通用 ROM 镜像。

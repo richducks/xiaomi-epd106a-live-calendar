@@ -5,7 +5,7 @@
 ## 初始工作顺序（必须）
 
 1. 读取本文件、`ai/TOOL_MANIFEST.json`、`ai/操作流程.md` 和 `README_先看这里.md`，确认执行目录为当前工程根目录。
-2. 按本机平台选择打包的 Python 解释器（优先 `vendor/<target>/python/...`），然后只执行：`python ai_runner.py status`。
+2. 若是 GitHub Release 下载的桌面包，优先使用内置 `XiaomiReaderAI` 可执行程序（Windows 为 `.exe`），不需要系统 Python。源码模式才按本机平台选择打包的 Python 解释器（优先 `vendor/<target>/python/...`），然后只执行：`python ai_runner.py status`。
 3. 查看 JSON 中 `offline_assets.ready` 和 `reader.return_code`。**`ready=false` 不等于备份已执行；无 ADB 时只能准备环境。**
 4. 设备信息使用 `python ai_runner.py inspect`，多台设备必须通过 `--serial` 精确指定，Root 不一定存在。
 5. 需要备份时 `python ai_runner.py backup --serial <实际序列号>`，检查 JSON 的 `backup_zip`、`snapshot_complete`、`warnings`，再 `python ai_runner.py verify --bundle <实际ZIP>`。
@@ -28,3 +28,7 @@
 - 如 `offline_assets.ready=false`，必须说明哪些工具尚未下载/校验；不要假装已离线可用。
 - 按“两轮验收”：第一轮工程完整性（哈希、恢复约束、日志）；第二轮产品体验（日历、省电、触控、多看导航、旧服务唯一性）。两轮独立通过方可称 `GOLDEN`。
 - 归档所有操作记录，不保留或输出任何密码和 Root 隐私数据。
+
+## v0.3.1 下载版
+
+桌面程序 `XiaomiReader` 与 AI CLI `XiaomiReaderAI` 使用自带 Python。首次如缺 ADB，请通过 GUI 阅读并接受 Google SDK 条款后由工具从官方地址下载。该二进制程序不包含 Google SDK、Root 或 ROM。先检查、先备份、再验收仍是硬约束。

@@ -1,5 +1,10 @@
 # 墨水历 · EPD106A 动态万年历锁屏
 
+## 普通用户下载安装（不必配置 Python）
+
+**先到 [GitHub Releases](https://github.com/richducks/xiaomi-epd106a-live-calendar/releases) 下载与自己电脑匹配的 Windows / macOS（Intel、Apple Silicon）/ Linux 桌面 ZIP。** 解压后双击启动 GUI，可检测、备份、校验和在明确确认后仅恢复第三方 APK，另含 `XiaomiReaderAI` 给具备本机操作权限的 AI 调用。参见 [新手下载与安装说明](docs/DOWNLOAD_AND_INSTALL.md)。电脑程序不含 Google ADB/Fastboot、Magisk、LSPosed、NeatReader 或厂商固件；首次使用可由工具引导阅读 SDK 许可并从 Google 官方下载 ADB。**这不是无需 Root 的 ROM 镜像复制器**。
+
+
 [English](README.en.md) · [2026-10-14 电源键与 1/10 分钟 RTC 修复](docs/POWERKEY_RTC_REFRESH_20261014.md) · [10 分钟低功耗 RTC 实验](docs/TEN_MINUTE_RTC_EXPERIMENT.md) · [自动息屏进入实时日历](docs/AUTO_IDLE_LIVE_CALENDAR.md) · [当前系统备份与复制到第二台](docs/SAME_DEVICE_RESTORE.md) · [安装与卸载](docs/INSTALL.md) · [工程/产品验收](docs/ACCEPTANCE.md) · [恢复机制](docs/RECOVERY.md) · [已遇到的问题](docs/TROUBLESHOOTING.md) · [Root 与版权](docs/ROOT_AND_LICENSES.md)
 
 为小米多看阅读器一代、墨案 EPD106A / Android 8.1（virgo-perf1）开发的**开源、原生、真实分钟更新的动态万年历**。本项目不是静态锁屏 PNG：在正常电量下，短按实体电源键直接切换至原生 Android 日历，显示北京时间 `HH:mm`、公历、农历、月历和节气估算、今日手绘墨圈；再次短按返回原阅读任务。
@@ -99,4 +104,4 @@ adb shell am force-stop com.gzhi.neatreader.r2.main
 
 ## AI 跨平台离线工具仓（Windows / macOS / Linux）
 
-新增 [AI 离线工具仓 v0.3 使用与安全说明](docs/AI_OFFLINE_KIT.md) 和 [`tools/ai-offline-kit/`](tools/ai-offline-kit/)。它提供 Python 通用备份/校验、受控 APK 还原、ADB/Python 官方组件的**用户本地**预下载准备器，以及供终端 AI 调用的 JSON 命令入口。**GitHub 只包含源码，没有预下载的第三方二进制、完整系统镜像或用户私人备份。** 当前 EPD106A 的固件专用 Root/LSPosed 部署仍应使用 [`scripts/provision-clone.sh`](scripts/provision-clone.sh) 并按固件指纹、LSPosed 作用域及 Recovery 护栏逐项验收；通用 APK 恢复不能代替它。
+新增 [AI 离线工具仓 v0.3 使用与安全说明](docs/AI_OFFLINE_KIT.md) 和 [`tools/ai-offline-kit/`](tools/ai-offline-kit/)。它提供 Python 通用备份/校验、受控 APK 还原、ADB/Python 官方组件的**用户本地**预下载准备器，以及供终端 AI 调用的 JSON 命令入口。**本仓库源码目录不包含 Google SDK 等第三方二进制，也不包含完整系统镜像或私人备份；自研桌面程序的免 Python 安装包在 Releases 页面提供。** 当前 EPD106A 的固件专用 Root/LSPosed 部署仍应使用 [`scripts/provision-clone.sh`](scripts/provision-clone.sh) 并按固件指纹、LSPosed 作用域及 Recovery 护栏逐项验收；通用 APK 恢复不能代替它。
