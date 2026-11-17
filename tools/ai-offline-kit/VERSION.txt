@@ -1,0 +1,3 @@
+v0.3.0
+2026-11-16
+Cross-platform, AI-callable, with one-time offline bootstrap; no Google/Python binaries included in distributed starter ZIP.

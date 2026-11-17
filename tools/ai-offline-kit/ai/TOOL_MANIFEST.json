@@ -1,0 +1,91 @@
+{
+  "name": "xiaomi-reader-offline-toolkit",
+  "version": "0.3.0",
+  "binary": "ai_runner.py",
+  "execution_requirements": [
+    "AI has an authorized local terminal/computer-use tool",
+    "USB connected, debugging enabled and computer authorized",
+    "A matching host Python runtime and adb is available"
+  ],
+  "supported_targets": [
+    "windows-x64",
+    "macos-arm64",
+    "macos-x64",
+    "linux-x64"
+  ],
+  "not_supported": [
+    "windows-arm64-native",
+    "linux-arm64-offline-bundled-adb",
+    "complete-ROM-image-restore"
+  ],
+  "commands": {
+    "status": {
+      "argv": [
+        "python",
+        "ai_runner.py",
+        "status"
+      ],
+      "mutates_device": false
+    },
+    "inspect": {
+      "argv": [
+        "python",
+        "ai_runner.py",
+        "inspect"
+      ],
+      "mutates_device": false
+    },
+    "backup": {
+      "argv": [
+        "python",
+        "ai_runner.py",
+        "backup",
+        "--serial",
+        "<verified_serial>"
+      ],
+      "mutates_device": false
+    },
+    "verify": {
+      "argv": [
+        "python",
+        "ai_runner.py",
+        "verify",
+        "--bundle",
+        "<backup_zip>"
+      ],
+      "mutates_device": false
+    },
+    "restore": {
+      "argv": [
+        "python",
+        "ai_runner.py",
+        "restore",
+        "--bundle",
+        "<backup_zip>",
+        "--serial",
+        "<verified_target_serial>",
+        "--approve-install"
+      ],
+      "mutates_device": true,
+      "requires_explicit_user_consent": true
+    },
+    "source": {
+      "argv": [
+        "python",
+        "ai_runner.py",
+        "source",
+        "--project-dir",
+        "<verified_source_path>"
+      ],
+      "mutates_device": false,
+      "data_safety": "source may contain hardcoded secrets; never upload without inspection"
+    }
+  },
+  "safety": {
+    "no_flash": true,
+    "no_root_restore": true,
+    "no_private_data_restore": true,
+    "no_public_backup_upload": true
+  },
+  "output": "json_stdout_and_process_exit_code"
+}

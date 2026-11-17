@@ -1,0 +1,12 @@
+{
+  "version": "0.3.0",
+  "date": "2026-11-16",
+  "source_code_packaged": true,
+  "all_platform_adb_python_downloaded": false,
+  "vendor_binary_count": 0,
+  "offline_readiness": "NOT_READY",
+  "simulation_tests_passed": 20,
+  "native_device_tests": "NOT_RUN",
+  "tested_os": "Linux Python3.13 container, simulated ADB",
+  "notes": "Build environment has no external DNS connectivity; run prepare_offline.py on online PC after reviewing and accepting Google SDK license. Never claim a full system image."
+}

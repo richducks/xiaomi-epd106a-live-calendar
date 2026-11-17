@@ -1,0 +1,16 @@
+# Backups contain APKs, potentially sensitive Magisk scripts and personal data.
+reader-backups/
+*.zip
+*.tar
+__pycache__/
+.pytest_cache/
+platform-tools/adb
+platform-tools/adb.exe
+platform-tools/AdbWinApi.dll
+platform-tools/AdbWinUsbApi.dll
+
+# This GitHub integration keeps downloaded or private tools out of the public repository.
+/vendor/
+/vendor-lock.json
+/reader-backups/
+/source-archives/
