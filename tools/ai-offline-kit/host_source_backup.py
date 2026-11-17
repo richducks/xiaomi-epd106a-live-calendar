@@ -73,4 +73,9 @@ def main():
 
 
 if __name__ == '__main__':
+    # Windows pipes and CI runners may default to cp1252. Preserve Chinese JSON/logs.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, 'reconfigure'):
+            stream.reconfigure(encoding='utf-8', errors='replace')
+
     sys.exit(main())
