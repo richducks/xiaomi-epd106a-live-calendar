@@ -23,7 +23,8 @@ from pathlib import Path, PurePosixPath
 
 SCHEMA = 1
 VERSION = "0.3.0"
-TOOL_DIR = Path(__file__).resolve().parent
+TOOL_DIR = (Path(os.environ.get('XIAOMI_READER_DATA_DIR', str(Path.home() / '.xiaomi-reader'))).expanduser().resolve()
+            if getattr(sys, 'frozen', False) else Path(__file__).resolve().parent)
 # Select adb once at CLI startup. Unit-level functions retain the same API.
 ADB_BIN = "adb"
 MAX_ZIP_MEMBER_BYTES = 8 * 1024**3

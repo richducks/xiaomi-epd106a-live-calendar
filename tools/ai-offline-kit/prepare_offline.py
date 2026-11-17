@@ -21,7 +21,8 @@ import urllib.request
 import zipfile
 from pathlib import Path, PurePosixPath
 
-ROOT = Path(__file__).resolve().parent
+ROOT = (Path(os.environ.get('XIAOMI_READER_DATA_DIR', str(Path.home() / '.xiaomi-reader'))).expanduser().resolve()
+        if getattr(sys, 'frozen', False) else Path(__file__).resolve().parent)
 VENDOR = ROOT / 'vendor'
 LOCK = ROOT / 'vendor-lock.json'
 VERSION = '0.3.0'

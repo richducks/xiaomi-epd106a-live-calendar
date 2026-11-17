@@ -1,25 +1,16 @@
 @echo off
 setlocal
 chcp 65001 >nul
-set "PYTHONUTF8=1"
 cd /d "%~dp0"
-set "PYEXE=%~dp0vendor\windows-x64\python\python.exe"
-if exist "%PYEXE%" (
-  "%PYEXE%" "%~dp0reader_clone.py" menu
-  goto end
+if exist "%~dp0XiaomiReader.exe" (
+  start "" "%~dp0XiaomiReader.exe"
+  exit /b 0
 )
+set "PYTHONUTF8=1"
 where py >nul 2>&1
-if not errorlevel 1 (
-    py -3 "%~dp0reader_clone.py" menu
-    goto end
-)
+if not errorlevel 1 (py -3 "%~dp0desktop_gui.py" & goto end)
 where python >nul 2>&1
-if not errorlevel 1 (
-    python "%~dp0reader_clone.py" menu
-    goto end
-)
-echo [FAIL] No Python runtime found; use Python once to run prepare_offline.py, then build offline ZIP.
+if not errorlevel 1 (python "%~dp0desktop_gui.py" & goto end)
+echo Cannot find executable. Please download the Windows ZIP from GitHub Releases.
 :end
-echo.
 pause
-endlocal

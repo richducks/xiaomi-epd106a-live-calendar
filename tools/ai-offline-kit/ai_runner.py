@@ -13,9 +13,11 @@ import sys
 from pathlib import Path
 
 import reader_clone
+import host_source_backup
 from prepare_offline import check_target, current_platform
 
-ROOT = Path(__file__).resolve().parent
+ROOT = (Path(os.environ.get('XIAOMI_READER_DATA_DIR', str(Path.home() / '.xiaomi-reader'))).expanduser().resolve()
+        if getattr(sys, 'frozen', False) else Path(__file__).resolve().parent)
 
 
 def invoke(argv):
@@ -65,11 +67,18 @@ def execute(args):
             result['blocked'] = '必须传入 --project-dir 指定真实源码目录；不允许猜测其他工程。'
             result['reader'] = {'return_code': 3, 'stdout': '', 'stderr': ''}
         else:
-            cmd = [sys.executable, str(ROOT / 'host_source_backup.py'), '--project-dir', args.project_dir]
+            opts = ['--project-dir', args.project_dir]
             if args.output:
-                cmd.extend(['--output', args.output])
-            proc = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=1800, cwd=str(ROOT))
-            result['reader'] = {'return_code': proc.returncode, 'stdout': proc.stdout, 'stderr': proc.stderr}
+                opts.extend(['--output', args.output])
+            if getattr(sys, 'frozen', False):
+                output, errors = io.StringIO(), io.StringIO()
+                with contextlib.redirect_stdout(output), contextlib.redirect_stderr(errors):
+                    code = host_source_backup.main(opts)
+                result['reader'] = {'return_code': int(code or 0), 'stdout': output.getvalue(), 'stderr': errors.getvalue()}
+            else:
+                cmd = [sys.executable, str(ROOT / 'host_source_backup.py'), *opts]
+                proc = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=1800, cwd=str(ROOT))
+                result['reader'] = {'return_code': proc.returncode, 'stdout': proc.stdout, 'stderr': proc.stderr}
     elif action == 'restore':
         if not args.approve_install:
             result['blocked'] = '安装属于设备修改操作，需要用户明确授权并使用 --approve-install。'
